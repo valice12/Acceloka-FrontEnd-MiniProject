@@ -1,5 +1,3 @@
-import React from 'react';
-import App from './App';
 import { Link } from 'react-router-dom';
 
 const TicketList = () => {
@@ -11,8 +9,8 @@ const TicketList = () => {
                 <li><Link to="/ticket/2">Ticket 2</Link></li>
                 <li><Link to="/ticket/3">Ticket 3</Link></li>
             </ul>
-        </div> 
+        </div>
     );
 }
 
-export default App;
+export default TicketList;
