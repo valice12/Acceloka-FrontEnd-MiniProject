@@ -1,45 +1,37 @@
 import { Link } from 'react-router-dom';
 
-const TicketBookedList = () => {
-  // Data dummy untuk tiket yang sudah dipesan
+interface Props {
+  searchQuery: string;
+}
+
+const TicketBookedList: React.FC<Props> = ({ searchQuery }) => {
   const bookedTickets = [
     { id: "BKD-101", judul: "Konser Coldplay", tanggalPesan: "24 Feb 2026", status: "Sudah Bayar" },
     { id: "BKD-102", judul: "Seminar Tech 2026", tanggalPesan: "20 Feb 2026", status: "Menunggu Pembayaran" },
-    { id: "BKD-103", judul: "Final Liga Champions", tanggalPesan: "15 Feb 2026", status: "Dibatalkan" },
   ];
 
+  // Logika Filter: Mencari berdasarkan ID atau Judul
+  const filteredTickets = bookedTickets.filter((ticket) => 
+    ticket.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    ticket.judul.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-2xl font-bold mb-6 text-gray-800">My Booked Tickets</h1>
-      
+    <div>
+      <h1 className="text-2xl font-bold mb-6 text-left">My Bookings</h1>
       <div className="space-y-4">
-        {bookedTickets.map((ticket) => (
-          <div key={ticket.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <Link to={`/bookedticketlist/${ticket.id}`} className="block p-5 hover:bg-gray-50 transition">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">{ticket.judul}</h2>
-                  <p className="text-sm text-gray-500 mt-1">ID Pesanan: {ticket.id}</p>
-                  <p className="text-xs text-gray-400 mt-2">Dipesan pada: {ticket.tanggalPesan}</p>
-                </div>
-                
-                {/* Status Badge */}
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                  ticket.status === "Sudah Bayar" ? "bg-green-100 text-green-600" :
-                  ticket.status === "Menunggu Pembayaran" ? "bg-yellow-100 text-yellow-600" :
-                  "bg-red-100 text-red-600"
-                }`}>
-                  {ticket.status}
-                </span>
-              </div>
-              
-              <div className="mt-4 text-blue-600 text-sm font-medium flex items-center">
-                Lihat Detail Pesanan 
-                <span className="ml-1">→</span>
-              </div>
-            </Link>
-          </div>
-        ))}
+        {filteredTickets.length > 0 ? (
+          filteredTickets.map((ticket) => (
+            <div key={ticket.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+               {/* ... isi card seperti sebelumnya ... */}
+               <Link to={`/bookedticketlist/${ticket.id}`} className="text-blue-600 font-bold uppercase">
+                 Detail: {ticket.id}
+               </Link>
+            </div>
+          ))
+        ) : (
+          <p className="text-gray-500 italic">Pesanan dengan ID "{searchQuery}" tidak ditemukan.</p>
+        )}
       </div>
     </div>
   );

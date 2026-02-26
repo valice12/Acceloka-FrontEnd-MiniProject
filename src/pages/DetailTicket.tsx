@@ -1,51 +1,107 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
+// 1. Definisikan interface yang sama dengan TicketList
+interface TicketDetail {
+  ticketCode: string;
+  ticketName: string;
+  categoryName: string;
+  quota: number;
+  price: number;
+  eventDateStart: string;
+  eventDateEnd: string;
+}
+
 const DetailTicket = () => {
-    const { ticketId } = useParams();
+    // ticketId diambil dari path: /ticket/:id di App.tsx
+    const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    
+    const [ticket, setTicket] = useState<TicketDetail | null>(null);
     const [quantity, setQuantity] = useState(1);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // 2. Fetch data spesifik berdasarkan ID
+    useEffect(() => {
+        const fetchDetail = async () => {
+            try {
+                setIsLoading(true);
+                // Sesuaikan dengan endpoint detail kamu, misalnya:
+                const response = await fetch(`http://localhost:5287/api/v1/get-available-ticket`);
+                const data: TicketDetail[] = await response.json();
+                
+                // Karena API kamu mengembalikan array, kita cari yang kodenya cocok
+                const foundTicket = data.find(t => t.ticketCode === id);
+                setTicket(foundTicket || null);
+            } catch (error) {
+                console.error("Gagal memuat detail tiket:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchDetail();
+    }, [id]);
+
+    const formatIDR = (price: number) => {
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0
+        }).format(price);
+    };
+
+    if (isLoading) return <div className="p-10 text-center">Memuat detail tiket...</div>;
+    if (!ticket) return <div className="p-10 text-center">Tiket tidak ditemukan.</div>;
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col relative pb-24">
+        <div className="min-h-screen bg-gray-50 flex flex-col relative pb-24 text-left">
             {/* Banner Section */}
-            <div className="w-full bg-gray-300 h-[200px] flex items-center justify-center text-gray-600 font-bold uppercase tracking-widest shadow-inner">
-                Banner Image / Header
+            <div className="w-full bg-blue-600 h-[200px] flex flex-col items-center justify-center text-white shadow-inner p-4 text-center">
+                <span className="text-sm uppercase tracking-widest opacity-80 mb-2">{ticket.categoryName}</span>
+                <h1 className="text-2xl md:text-4xl font-black uppercase">{ticket.ticketName}</h1>
             </div>
 
             {/* Content Container */}
-            <div className="max-w-4xl mx-auto w-full p-6 bg-white shadow-sm mt-[-20px] rounded-t-3xl z-10">
+            <div className="max-w-4xl mx-auto w-full p-6 bg-white shadow-sm mt-[-40px] rounded-t-3xl z-10">
                 
-                {/* Judul & Kategori */}
                 <div className="mb-6">
-                    <span className="bg-blue-100 text-blue-600 text-xs font-bold px-3 py-1 rounded-full uppercase">
-                        Entertainment
-                    </span>
-                    <h1 className="text-3xl font-extrabold text-gray-800 mt-2">
-                        Judul Tiket Spektakuler {ticketId}
-                    </h1>
-                    <p className="text-gray-500 mt-1 flex items-center">
-                        📅 25 - 27 Februari 2026
-                    </p>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <span className="bg-blue-100 text-blue-600 text-xs font-bold px-3 py-1 rounded-full uppercase">
+                                {ticket.categoryName}
+                            </span>
+                            <h1 className="text-3xl font-extrabold text-gray-800 mt-2">
+                                {ticket.ticketName}
+                            </h1>
+                        </div>
+                        <div className="text-right">
+                             <p className="text-xs text-gray-400 uppercase">Sisa Kuota</p>
+                             <p className="text-lg font-bold text-orange-500">{ticket.quota} Tiket</p>
+                        </div>
+                    </div>
+                    <div className="text-gray-500 mt-4 flex flex-col gap-1 text-sm">
+                        <p>📅 Mulai: {new Date(ticket.eventDateStart).toLocaleString('id-ID')}</p>
+                        <p>🏁 Selesai: {new Date(ticket.eventDateEnd).toLocaleString('id-ID')}</p>
+                    </div>
                 </div>
 
                 <hr className="border-gray-100 mb-6" />
 
-                {/* Deskripsi */}
                 <div className="mb-8">
-                    <h2 className="font-bold text-lg text-gray-700 mb-2">Deskripsi</h2>
-                    <p className="text-gray-600 leading-relaxed">
-                        Ini adalah deskripsi tiket yang menjelaskan detail acara. Nikmati pengalaman tak terlupakan dengan fasilitas terbaik yang kami sediakan khusus untuk Anda.
+                    <h2 className="font-bold text-lg text-gray-700 mb-2 text-left">Deskripsi Tiket</h2>
+                    <p className="text-gray-600 leading-relaxed text-left">
+                        Tiket untuk <strong>{ticket.ticketName}</strong> kategori <strong>{ticket.categoryName}</strong>. 
+                        Gunakan kode referensi <code>{ticket.ticketCode}</code> untuk informasi lebih lanjut saat check-in di lokasi acara.
                     </p>
                 </div>
 
                 {/* Pricelist Card */}
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-10">
+                <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-10">
                     <p className="text-sm text-gray-500 italic">Harga per tiket</p>
-                    <div className="text-2xl font-bold text-blue-600">Rp 750.000</div>
+                    <div className="text-3xl font-black text-blue-600">{formatIDR(ticket.price)}</div>
                 </div>
 
-                {/* Section Pembelian - Floating di bawah atau di tengah */}
+                {/* Section Pembelian */}
                 <div className="flex items-center justify-between bg-white border-t border-gray-100 pt-6">
                     <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
                         <button 
@@ -56,24 +112,20 @@ const DetailTicket = () => {
                             {quantity}
                         </div>
                         <button 
-                            onClick={() => setQuantity(quantity + 1)}
+                            onClick={() => setQuantity(Math.min(ticket.quota, quantity + 1))}
                             className="px-4 py-2 bg-gray-100 hover:bg-gray-200 transition font-bold"
                         >+</button>
                     </div>
 
                     <button 
-                        onClick={() => navigate('/booked')}
+                        onClick={() => navigate('/bookedticketlist')}
                         className="flex-1 ml-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-blue-200 text-center"
                     >
-                        Pesan Sekarang
+                        Pesan Sekarang ({formatIDR(ticket.price * quantity)})
                     </button>
                 </div>
             </div>
 
-            {/* Footer - Menempel di bawah jika konten sedikit */}
-            <footer className="mt-auto w-full py-6 bg-gray-800 text-gray-400 text-center text-sm">
-                &copy; 2026 TicketApp. All rights reserved.
-            </footer>
         </div>
     );
 }

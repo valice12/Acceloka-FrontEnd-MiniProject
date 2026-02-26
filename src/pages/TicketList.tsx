@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom';
 import { textChangeRangeIsUnchanged } from 'typescript';
+import { useEffect } from 'react';
+import { useState } from 'react';
+
 
 // const TicketList = () => {
 //     const showTicket = () => {
@@ -37,40 +40,84 @@ import { textChangeRangeIsUnchanged } from 'typescript';
 // };
 
 
-const TicketList = () => {
-  // 1. Buat data dummy dalam bentuk Array
-  const dummyTickets = [
-    { id: 1, judul: "Konser Coldplay", kode: "CP-001", harga: "Rp 1.500.000", waktu: "19:00 - 22:00" },
-    { id: 2, judul: "Final Liga Champions", kode: "UCL-099", harga: "Rp 5.000.000", waktu: "02:00 - 05:00" },
-    { id: 3, judul: "Seminar Tech 2026", kode: "ST-202", harga: "Gratis", waktu: "09:00 - 12:00" },
-  ];
+interface Ticket {
+  ticketCode: string;
+  ticketName: string;
+  categoryName: string;
+  quota: number;
+  price: number;
+  eventDateStart: string;
+}
+
+interface TicketListProps {
+  searchQuery: string;
+}
+
+const TicketList: React.FC<TicketListProps> = ({ searchQuery }) => {
+  // 1. State untuk menampung data dari API
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // 2. Mengambil data dari Backend saat komponen pertama kali dibuka
+  useEffect(() => {
+    const fetchTickets = async () => {
+      try {
+        setIsLoading(true);
+        // Ganti URL ini dengan endpoint API backend kamu
+        const response = await fetch('http://localhost:5287/api/v1/get-available-ticket'); 
+        
+        if (!response.ok) throw new Error('Gagal mengambil data tiket');
+        
+        const data = await response.json();
+        setTickets(data);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTickets();
+  }, []); // Array kosong berarti hanya dijalankan 1x saat load
+
+  // 3. Logika Filter tetap berjalan secara dinamis pada data yang baru di-fetch
+  const filteredTickets = tickets.filter((ticket) =>
+    ticket.ticketName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Loading State
+  if (isLoading) return <div className="p-10 text-center">Memuat tiket...</div>;
+  
+  // Error State
+  if (error) return <div className="p-10 text-center text-red-500">Error: {error}</div>;
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Ticket List</h1>
-      <ul className="space-y-4"> {/* Menambah jarak antar list */}
-        {/* 2. Lakukan looping menggunakan .map() */}
-        {dummyTickets.map((ticket) => (
-          <li key={ticket.id} className="list-none">
-            <Link to={`/ticket/${ticket.id}`} className="block hover:opacity-80">
-              <div className="flex w-full bg-gray-200 border border-gray-300">
-                {/* Bagian Gambar */}
-                <div className="flex items-center justify-center bg-gray-400 w-[120px] h-[120px] text-center text-xs p-2">
-                  Picture
-                </div>
-                
-                {/* Bagian Penjelasan */}
-                <div className="flex-1 pr-4 pl-4 bg-blue-100 flex flex-col justify-center">
-                  <div className="font-bold text-lg">{ticket.judul}</div>
-                  <div className="text-sm text-gray-600 italic">{ticket.kode}</div>
-                  <div className="text-blue-700 font-semibold">{ticket.harga}</div>
-                  <div className="text-gray-500 text-sm">{ticket.waktu}</div>
+      <h1 className="text-2xl font-bold mb-6 text-left">Daftar Tiket Tersedia</h1>
+      
+      <div className="grid grid-cols-1 gap-4 text-left">
+        {filteredTickets.length > 0 ? (
+          filteredTickets.map((ticket) => (
+            <Link key={ticket.ticketCode} to={`/ticket/${ticket.ticketCode}`}>
+              <div className="flex bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition">
+                <div className="bg-blue-600 w-2 h-full"></div>
+                <div className="p-5 flex-1">
+                  <div className="flex justify-between">
+                    <h2 className="font-bold text-lg">{ticket.ticketName}</h2>
+                    <span className="text-sm font-bold text-blue-600">
+                      {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(ticket.price)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500">{ticket.categoryName} • Stok: {ticket.quota}</p>
                 </div>
               </div>
             </Link>
-          </li>
-        ))}
-      </ul>
+          ))
+        ) : (
+          <p className="text-gray-400 italic">Tiket tidak ditemukan.</p>
+        )}
+      </div>
     </div>
   );
 };
