@@ -5,7 +5,7 @@ import './App.css';
 import TicketList from './pages/TicketList';
 import DetailTicket from './pages/DetailTicket';
 import TicketBookedList from './pages/TicketBookedList';
-import DetailTicketBookedList from './pages/DetailTicketaBookedList';
+import DetailTicketBookedList from './pages/DetailTicketBookedList';
 
 const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
