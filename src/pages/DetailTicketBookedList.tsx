@@ -1,68 +1,157 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
-// 1. Definisikan Interface agar TypeScript tidak error
-interface Ticket {
-  bookedTicketId: string;
+// 1. Definisikan Interface sesuai dengan struktur JSON dari API yang baru
+interface TicketDetail {
   ticketCode: string;
-  quantity: number;
-  price: number;
-  scheduledDate: string;
+  ticketName: string;
+  eventDate: string;
+  price?: number; // Dibuat opsional berjaga-jaga jika API belum/tidak mengirimkan harga
 }
 
-interface BookedOrder {
-  bookedTicketId: string;
-  tickets: Ticket[];
-  totalTicketsInOrder: number;
+interface BookedCategory {
+  quantityPerCategory: number;
+  categoryName: string;
+  tickets: TicketDetail[];
 }
 
 const DetailTicketBookedList = () => {
-  // Mengambil ID dari URL
   const { id } = useParams<{ id: string }>(); 
   const navigate = useNavigate();
 
-  // 2. State untuk menampung data dinamis
-  const [orderDetail, setOrderDetail] = useState<BookedOrder | null>(null);
+  // 2. State disesuaikan untuk menampung array kategori
+  const [orderCategories, setOrderCategories] = useState<BookedCategory[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const [draftQuantities, setDraftQuantities] = useState<Record<string, number>>({});
+
+  const fetchDetailData = useCallback(async () => {
+    try {
+      setLoading(true);
+      // Menggunakan endpoint API yang baru sesuai ID
+      const response = await fetch(`http://localhost:5287/api/v1/get-booked-ticket/${id}`);
+      
+      if (!response.ok) throw new Error("Gagal mengambil data pesanan.");
+      
+      const data: BookedCategory[] = await response.json();
+
+      if (data && data.length > 0) {
+        setOrderCategories(data);
+        setError(null);
+      } else {
+        setError("Data pesanan tidak ditemukan.");
+      }
+    } catch (err) {
+      setError("Gagal mengambil data dari server.");
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
   useEffect(() => {
-    const fetchDetailData = async () => {
-      try {
-        setLoading(true);
-        // GANTI URL INI dengan endpoint API asli Anda
-        const response = await fetch('http://localhost:5287/api/v1/get-all-booked-tickets'); 
-        const data = await response.json();
+    if (id) {
+      fetchDetailData();
+    }
+  }, [fetchDetailData]);
 
-        // 3. Cari data spesifik dari list yang ditarik secara dinamis
-        const foundOrder = data.listBookedTickets.find(
-          (item: BookedOrder) => item.bookedTicketId === id
-        );
-
-        if (foundOrder) {
-          setOrderDetail(foundOrder);
-        } else {
-          setError("Data pesanan tidak ditemukan.");
-        }
-      } catch (err) {
-        setError("Gagal mengambil data dari server.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (id) fetchDetailData();
-  }, [id]); // Re-run jika ID di URL berubah
-
-  // Helper Format Mata Uang
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
 
-  // --- Render Logic ---
-  if (loading) return <div className="p-10 text-center">Memuat Detail Pesanan...</div>;
-  if (error || !orderDetail) return <div className="p-10 text-center text-red-500">{error}</div>;
+  if (loading && orderCategories.length === 0) return <div className="p-10 text-center">Memuat Detail Pesanan...</div>;
+  if (error || orderCategories.length === 0) return <div className="p-10 text-center text-red-500">{error || "Data kosong"}</div>;
 
-  const totalBayar = orderDetail.tickets.reduce((acc, t) => acc + (t.price * t.quantity), 0);
+  // Kalkulasi total bayar berdasarkan quantity kategori * harga tiket (jika ada)
+  const totalBayar = orderCategories.reduce((acc, category) => {
+    const price = category.tickets[0]?.price || 0;
+    return acc + (price * category.quantityPerCategory);
+  }, 0);
+
+  const handleLocalQuantityChange = (ticketCode: string, originalQty: number, delta: number) => {
+    const currentQty = draftQuantities[ticketCode] !== undefined ? draftQuantities[ticketCode] : originalQty;
+    const newQuantity = currentQty + delta;
+
+    if (newQuantity < 1) {
+      alert("Jumlah tiket minimal adalah 1. Gunakan tombol hapus jika ingin membatalkan tiket.");
+      return;
+    }
+
+    setDraftQuantities(prev => ({
+      ...prev,
+      [ticketCode]: newQuantity
+    }));
+  };
+
+  const handleSaveQuantity = async (ticketCode: string, originalQty: number) => {
+    const newQuantity = draftQuantities[ticketCode];
+    
+    if (!newQuantity || newQuantity === originalQty) return;
+
+    const action = newQuantity > originalQty ? "menambah" : "mengurangi";
+    const confirmMsg = `Apakah Anda yakin ingin ${action} jumlah tiket menjadi ${newQuantity}?`;
+
+    if (window.confirm(confirmMsg)) {
+      try {
+        setLoading(true);
+        const response = await fetch(`http://localhost:5287/api/v1/edit-booked-ticket/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tickets: [{ ticketCode, quantity: newQuantity }]
+          })
+        });
+
+        if (response.ok) {
+          alert("Berhasil memperbarui jumlah tiket.");
+          
+          setDraftQuantities(prev => {
+            const newState = { ...prev };
+            delete newState[ticketCode];
+            return newState;
+          });
+
+          await fetchDetailData(); 
+        } else {
+          alert("Gagal memperbarui tiket. Silakan cek koneksi atau ketersediaan tiket.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Terjadi kesalahan sistem.");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleCancelDraft = (ticketCode: string) => {
+    setDraftQuantities(prev => {
+      const newState = { ...prev };
+      delete newState[ticketCode];
+      return newState;
+    });
+  };
+
+  const handleDeleteTicket = async (ticketCode: string, currentQuantity: number) => {
+    if (window.confirm("PERINGATAN: Tiket yang sudah dihapus tidak dapat dikembalikan. Lanjutkan hapus tiket?")) {
+      try {
+        setLoading(true);
+        const response = await fetch(`http://localhost:5287/api/v1/revoke-ticket/${id}/${ticketCode}/${currentQuantity}`, {
+          method: 'DELETE'
+        });
+
+        if (response.ok) {
+          alert("Tiket berhasil dihapus.");
+          await fetchDetailData(); 
+        } else {
+          alert("Gagal menghapus tiket.");
+        }
+      } catch (err) {
+        alert("Terjadi kesalahan saat menghapus.");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
@@ -74,33 +163,112 @@ const DetailTicketBookedList = () => {
         <div className="bg-white p-6 rounded-t-2xl border-b border-gray-100 flex justify-between items-center">
           <div>
             <h1 className="text-xl font-bold text-gray-800">Detail Pesanan</h1>
-            <p className="text-[10px] font-mono text-gray-400 mt-1 uppercase">ID: {orderDetail.bookedTicketId}</p>
+            <p className="text-[10px] font-mono text-gray-400 mt-1 uppercase">ID: {id}</p>
           </div>
-          <span className="bg-green-100 text-green-700 px-4 py-1 rounded-full text-sm font-bold">Terbayar</span>
+          <span className="bg-green-100 text-green-700 px-4 py-1 rounded-full text-sm font-bold">Status Pembayaran</span>
         </div>
 
-        <div className="space-y-4 mt-4">
-          {orderDetail.tickets.map((ticket, index) => (
-            <div key={ticket.ticketCode} className="bg-white rounded-xl shadow-md overflow-hidden border-l-8 border-blue-500 text-left p-6">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h2 className="text-lg font-bold text-blue-600">Tiket #{index + 1}</h2>
-                  <p className="text-sm text-gray-500 font-medium">{ticket.quantity} Tiket</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-gray-400 uppercase text-[10px] tracking-widest">Kode Tiket</p>
-                  <p className="font-mono font-bold text-gray-800 bg-gray-100 px-2 py-1 rounded">{ticket.ticketCode.split('-')[0]}</p>
-                </div>
-              </div>
+       <div className="space-y-4 mt-4">
+          {/* Mapping kategori, kemudian mapping tiket di dalamnya */}
+          {orderCategories.map((category, catIndex) => (
+            category.tickets.map((ticket, tIndex) => {
+              // Gunakan quantityPerCategory sebagai original quantity
+              const originalQty = category.quantityPerCategory;
               
-              <div className="mt-4 pt-4 border-t border-dashed border-gray-200 flex items-center gap-4">
-                <div className="w-16 h-16 bg-gray-200 flex items-center justify-center text-[10px] text-gray-500 font-bold border-2 border-gray-300">QR</div>
-                <div>
-                  <p className="text-sm font-bold text-gray-700">Jadwal: {new Date(ticket.scheduledDate).toLocaleDateString('id-ID')}</p>
-                  <p className="text-[11px] text-gray-400">Scan QR ini saat tiba di pintu masuk lokasi.</p>
+              const currentDisplayQty = draftQuantities[ticket.ticketCode] !== undefined 
+                ? draftQuantities[ticket.ticketCode] 
+                : originalQty;
+              
+              const isChanged = currentDisplayQty !== originalQty;
+
+              return (
+                <div key={ticket.ticketCode} className="bg-white rounded-xl shadow-md overflow-hidden border-l-8 border-blue-500 text-left p-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h2 className="text-lg font-bold text-blue-600">
+                        Tiket #{catIndex + 1}.{tIndex + 1} - <span className="text-gray-500 text-sm font-normal">{category.categoryName}</span>
+                      </h2>
+                      
+                      <h3 className="text-base font-semibold text-gray-800 mt-1">
+                        {ticket.ticketName}
+                      </h3>
+                      
+                      {/* Kontrol Jumlah Tiket */}
+                      <div className="flex items-center gap-3 mt-3">
+                        <button 
+                          onClick={() => handleLocalQuantityChange(ticket.ticketCode, originalQty, -1)}
+                          disabled={loading}
+                          className={`w-8 h-8 flex items-center justify-center rounded-full font-bold transition ${
+                            loading ? "bg-gray-100 text-gray-300" : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                          }`}
+                        >
+                          -
+                        </button>
+                        
+                        <span className={`text-sm font-bold w-12 text-center ${isChanged ? 'text-orange-500' : 'text-gray-800'}`}>
+                          {currentDisplayQty} Pax
+                        </span>
+                        
+                        <button 
+                          onClick={() => handleLocalQuantityChange(ticket.ticketCode, originalQty, 1)}
+                          disabled={loading}
+                          className={`w-8 h-8 flex items-center justify-center rounded-full font-bold transition ${
+                            loading ? "bg-gray-100 text-gray-300" : "bg-blue-100 hover:bg-blue-200 text-blue-600"
+                          }`}
+                        >
+                          +
+                        </button>
+
+                        {isChanged && (
+                          <div className="flex items-center gap-2 ml-2">
+                            <button 
+                              onClick={() => handleSaveQuantity(ticket.ticketCode, originalQty)}
+                              className="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm transition"
+                            >
+                              Simpan
+                            </button>
+                            <button 
+                              onClick={() => handleCancelDraft(ticket.ticketCode)}
+                              className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs px-3 py-1.5 rounded font-bold shadow-sm transition"
+                            >
+                              Batal
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end">
+                      <p className="text-gray-400 uppercase text-[10px] tracking-widest">Kode Tiket</p>
+                      <p className="font-mono font-bold text-gray-800 bg-gray-100 px-2 py-1 rounded mb-2">
+                        {ticket.ticketCode.split('-')[0]}...
+                      </p>
+                      
+                      <button 
+                        onClick={() => handleDeleteTicket(ticket.ticketCode, originalQty)}
+                        className="text-[10px] text-red-500 hover:text-red-700 font-bold flex items-center gap-1 border border-red-200 px-2 py-1 rounded bg-red-50"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        HAPUS TIKET
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4 pt-4 border-t border-dashed border-gray-200 flex items-center gap-4">
+                    <div className="w-16 h-16 bg-gray-200 flex items-center justify-center text-[10px] text-gray-500 font-bold border-2 border-gray-300">QR</div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-700">
+                        {/* Langsung render eventDate dari API */}
+                        Jadwal: {ticket.eventDate}
+                      </p>
+                      <p className="text-[11px] text-gray-400">Harga Satuan: {ticket.price ? formatCurrency(ticket.price) : 'Gratis / TBD'}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              );
+            })
           ))}
         </div>
 
