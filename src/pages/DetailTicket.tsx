@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom'; // Hapus useNavigate karena navigasi diatur oleh CartSystem
-import { useCart } from './Cart'; // Pastikan path import ini sesuai dengan lokasi file CartSystem.tsx Anda
+import { useParams, useNavigate } from 'react-router-dom'; // Kembalikan useNavigate
+import { useCart } from './Cart'; // Pastikan path ini sesuai
 
 // 1. Definisikan interface
 interface TicketDetail {
@@ -15,15 +15,17 @@ interface TicketDetail {
 
 const DetailTicket = () => {
     const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate(); // Inisialisasi navigate
     
-    // Panggil fungsi addToCart dari Context yang kita buat
+    // Panggil fungsi addToCart dari Context
     const { addToCart } = useCart(); 
     
     const [ticket, setTicket] = useState<TicketDetail | null>(null);
     const [quantity, setQuantity] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
     
-    // (STATE isBooking DIHAPUS karena sekarang loading diurus oleh CartSystem)
+    // State untuk loading spesifik saat klik "Pesan Langsung"
+    const [isBooking, setIsBooking] = useState(false);
 
     // 2. Fetch data spesifik berdasarkan ID
     useEffect(() => {
@@ -54,18 +56,16 @@ const DetailTicket = () => {
         }).format(price);
     };
 
-    // HANDLER BARU: Ganti handleBookTicket menjadi handleAddToCart
+    // HANDLER 1: Tambah ke Keranjang (Hanya state lokal Front-End)
     const handleAddToCart = () => {
         if (!ticket) return;
 
-        // Pengecekan waktu
         const isEventStarted = new Date(ticket.eventDateStart) <= new Date();
         if (isEventStarted) {
             alert("Maaf, tiket yang dipesan sudah lewat masa waktu.");
             return;
         }
 
-        // Masukkan ke keranjang
         addToCart({
             ticketCode: ticket.ticketCode,
             ticketName: ticket.ticketName,
@@ -73,6 +73,46 @@ const DetailTicket = () => {
             price: ticket.price,
             quantity: quantity
         });
+    };
+
+    // HANDLER 2: Pesan Langsung (Langsung POST API)
+    const handleBookNow = async () => {
+        if (!ticket) return;
+
+        const isEventStarted = new Date(ticket.eventDateStart) <= new Date();
+        if (isEventStarted) {
+            alert("Maaf, tiket yang dipesan sudah lewat masa waktu.");
+            return;
+        }
+
+        try {
+            setIsBooking(true);
+            const payload = {
+                tickets: [{ ticketCode: ticket.ticketCode, quantity: quantity }]
+            };
+
+            const response = await fetch('http://localhost:5287/api/v1/book-ticket', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                alert('Pesanan berhasil dibuat!');
+                navigate('/bookedticketlist');
+            } else {
+                const errorData = await response.json().catch(() => null);
+                if (response.status === 400) {
+                    alert("Maaf, tiket yang dipesan sudah lewat masa waktu atau kuota tidak mencukupi.");
+                } else {
+                    alert('Gagal membuat pesanan. Silakan coba lagi.');
+                }
+            }
+        } catch (error) {
+            alert('Terjadi kesalahan sistem. Tidak dapat terhubung ke server.');
+        } finally {
+            setIsBooking(false);
+        }
     };
     
     if (isLoading) return <div className="p-10 text-center">Memuat detail tiket...</div>;
@@ -128,28 +168,47 @@ const DetailTicket = () => {
 
                 {/* Section Pembelian */}
                 <div className="flex items-center justify-between bg-white border-t border-gray-100 pt-6">
-                    <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+                    {/* Input Jumlah */}
+                    <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden shrink-0">
                         <button 
                             onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                            disabled={quantity <= 1} // Disable jika jumlah 1
+                            disabled={quantity <= 1 || isBooking}
                             className="px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition font-bold"
                         >-</button>
-                        <div className="px-6 py-2 font-semibold text-gray-700 w-12 text-center">
+                        <div className="px-4 py-2 font-semibold text-gray-700 w-12 text-center">
                             {quantity}
                         </div>
                         <button 
                             onClick={() => setQuantity(Math.min(ticket.quota, quantity + 1))}
-                            disabled={quantity >= ticket.quota} // Disable jika kuota mentok
+                            disabled={quantity >= ticket.quota || isBooking}
                             className="px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition font-bold"
                         >+</button>
                     </div>
 
-                    <button 
-                        onClick={handleAddToCart}
-                        className="flex-1 ml-6 font-bold py-3 rounded-xl transition shadow-lg text-center bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200"
-                    >        
-                        Tambah ke Keranjang ({formatIDR(ticket.price * quantity)})
-                    </button>
+                    {/* Tombol Aksi Kanan */}
+                    <div className="flex flex-1 ml-6 gap-3">
+                        {/* Tombol Keranjang (Outline) */}
+                        <button 
+                            onClick={handleAddToCart}
+                            disabled={isBooking}
+                            className="flex-1 font-bold py-3 rounded-xl transition text-center border-2 border-blue-600 text-blue-600 hover:bg-blue-50 disabled:opacity-50 text-sm md:text-base"
+                        >        
+                            + Keranjang
+                        </button>
+
+                        {/* Tombol Pesan Langsung (Solid) */}
+                        <button 
+                            onClick={handleBookNow}
+                            disabled={isBooking}
+                            className={`flex-1 font-bold py-3 rounded-xl transition shadow-lg text-center text-sm md:text-base ${
+                                isBooking 
+                                ? 'bg-blue-400 text-white cursor-not-allowed shadow-none' 
+                                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'
+                            }`}
+                        >        
+                            {isBooking ? 'Memproses...' : `Beli (${formatIDR(ticket.price * quantity)})`}
+                        </button>
+                    </div>
                 </div>
             </div>
 
