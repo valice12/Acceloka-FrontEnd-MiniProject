@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom'; // Hapus useNavigate karena navigasi diatur oleh CartSystem
+import { useCart } from './Cart'; // Pastikan path import ini sesuai dengan lokasi file CartSystem.tsx Anda
 
-// 1. Definisikan interface yang sama dengan TicketList
+// 1. Definisikan interface
 interface TicketDetail {
   ticketCode: string;
   ticketName: string;
@@ -13,24 +14,25 @@ interface TicketDetail {
 }
 
 const DetailTicket = () => {
-    // ticketId diambil dari path: /ticket/:id di App.tsx
     const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    
+    // Panggil fungsi addToCart dari Context yang kita buat
+    const { addToCart } = useCart(); 
     
     const [ticket, setTicket] = useState<TicketDetail | null>(null);
     const [quantity, setQuantity] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
+    
+    // (STATE isBooking DIHAPUS karena sekarang loading diurus oleh CartSystem)
 
     // 2. Fetch data spesifik berdasarkan ID
     useEffect(() => {
         const fetchDetail = async () => {
             try {
                 setIsLoading(true);
-                // Sesuaikan dengan endpoint detail kamu, misalnya:
                 const response = await fetch(`http://localhost:5287/api/v1/get-available-ticket`);
                 const data: TicketDetail[] = await response.json();
                 
-                // Karena API kamu mengembalikan array, kita cari yang kodenya cocok
                 const foundTicket = data.find(t => t.ticketCode === id);
                 setTicket(foundTicket || null);
             } catch (error) {
@@ -39,7 +41,9 @@ const DetailTicket = () => {
                 setIsLoading(false);
             }
         };
-        fetchDetail();
+        if (id) {
+            fetchDetail();
+        }
     }, [id]);
 
     const formatIDR = (price: number) => {
@@ -50,6 +54,27 @@ const DetailTicket = () => {
         }).format(price);
     };
 
+    // HANDLER BARU: Ganti handleBookTicket menjadi handleAddToCart
+    const handleAddToCart = () => {
+        if (!ticket) return;
+
+        // Pengecekan waktu
+        const isEventStarted = new Date(ticket.eventDateStart) <= new Date();
+        if (isEventStarted) {
+            alert("Maaf, tiket yang dipesan sudah lewat masa waktu.");
+            return;
+        }
+
+        // Masukkan ke keranjang
+        addToCart({
+            ticketCode: ticket.ticketCode,
+            ticketName: ticket.ticketName,
+            categoryName: ticket.categoryName,
+            price: ticket.price,
+            quantity: quantity
+        });
+    };
+    
     if (isLoading) return <div className="p-10 text-center">Memuat detail tiket...</div>;
     if (!ticket) return <div className="p-10 text-center">Tiket tidak ditemukan.</div>;
 
@@ -106,22 +131,24 @@ const DetailTicket = () => {
                     <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
                         <button 
                             onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 transition font-bold"
+                            disabled={quantity <= 1} // Disable jika jumlah 1
+                            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition font-bold"
                         >-</button>
                         <div className="px-6 py-2 font-semibold text-gray-700 w-12 text-center">
                             {quantity}
                         </div>
                         <button 
                             onClick={() => setQuantity(Math.min(ticket.quota, quantity + 1))}
-                            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 transition font-bold"
+                            disabled={quantity >= ticket.quota} // Disable jika kuota mentok
+                            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition font-bold"
                         >+</button>
                     </div>
 
                     <button 
-                        onClick={() => navigate('/bookedticketlist')}
-                        className="flex-1 ml-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-blue-200 text-center"
-                    >
-                        Pesan Sekarang ({formatIDR(ticket.price * quantity)})
+                        onClick={handleAddToCart}
+                        className="flex-1 ml-6 font-bold py-3 rounded-xl transition shadow-lg text-center bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200"
+                    >        
+                        Tambah ke Keranjang ({formatIDR(ticket.price * quantity)})
                     </button>
                 </div>
             </div>
