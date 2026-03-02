@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import '../css/Cart.css'; // Memanggil file CSS baru
 
 // --- 1. INTERFACE & TIPE DATA ---
 export interface CartItem {
@@ -125,34 +126,34 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
             {/* --- OVERLAY UI KERANJANG --- */}
             {isCartOpen && (
-                <div className="fixed inset-0 z-50 flex justify-end">
+                <div className="cart-overlay">
                     {/* Background Gelap (Klik untuk tutup) */}
                     <div 
-                        className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+                        className="cart-backdrop"
                         onClick={() => setIsCartOpen(false)}
                     ></div>
 
                     {/* Sidebar Keranjang */}
-                    <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-slide-in-right">
-                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-blue-600 text-white">
-                            <h2 className="text-xl font-bold">Keranjang Pesanan</h2>
-                            <button onClick={() => setIsCartOpen(false)} className="text-white hover:text-gray-200 font-bold text-xl">✕</button>
+                    <div className="cart-sidebar">
+                        <div className="cart-header">
+                            <h2 className="cart-title">Keranjang Pesanan</h2>
+                            <button onClick={() => setIsCartOpen(false)} className="cart-close-btn">✕</button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+                        <div className="cart-body">
                             {cartItems.length === 0 ? (
-                                <p className="text-center text-gray-400 mt-10">Keranjang Anda masih kosong.</p>
+                                <p className="cart-empty-text">Keranjang Anda masih kosong.</p>
                             ) : (
                                 cartItems.map((item, index) => (
-                                    <div key={index} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-                                        <div>
-                                            <p className="text-xs text-blue-500 font-bold uppercase">{item.categoryName}</p>
-                                            <p className="font-bold text-gray-800">{item.ticketName}</p>
-                                            <p className="text-sm text-gray-500">{item.quantity}x @ {formatIDR(item.price)}</p>
+                                    <div key={index} className="cart-item">
+                                        <div className="cart-item-details">
+                                            <p className="cart-item-category">{item.categoryName}</p>
+                                            <p className="cart-item-name">{item.ticketName}</p>
+                                            <p className="cart-item-price">{item.quantity}x @ {formatIDR(item.price)}</p>
                                         </div>
                                         <button 
                                             onClick={() => removeFromCart(item.ticketCode)}
-                                            className="text-red-500 hover:bg-red-50 p-2 rounded-lg"
+                                            className="cart-delete-btn"
                                             title="Hapus Tiket"
                                         >
                                             🗑️
@@ -164,17 +165,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
                         {/* Bagian Bawah: Total & Tombol Konfirmasi */}
                         {cartItems.length > 0 && (
-                            <div className="p-6 bg-white border-t border-gray-200 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)]">
-                                <div className="flex justify-between items-center mb-4">
-                                    <p className="text-gray-500">Total Pembayaran</p>
-                                    <p className="text-xl font-black text-blue-600">{formatIDR(totalBayar)}</p>
+                            <div className="cart-footer">
+                                <div className="cart-total-row">
+                                    <p className="cart-total-label">Total Pembayaran</p>
+                                    <p className="cart-total-value">{formatIDR(totalBayar)}</p>
                                 </div>
                                 <button 
                                     onClick={handleCheckout}
                                     disabled={isBooking}
-                                    className={`w-full py-3 rounded-xl font-bold text-white transition ${
-                                        isBooking ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 shadow-lg shadow-green-200'
-                                    }`}
+                                    className={`cart-checkout-btn ${isBooking ? 'disabled' : 'active'}`}
                                 >
                                     {isBooking ? 'Memproses...' : 'Konfirmasi Pesanan'}
                                 </button>

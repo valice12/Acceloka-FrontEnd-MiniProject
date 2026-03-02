@@ -1,0 +1,118 @@
+/* Container & Title */
+.booked-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem; /* space-y-6 */
+}
+
+.booked-title {
+  font-size: 1.5rem; /* text-2xl */
+  font-weight: bold;
+  color: #1f2937; /* text-gray-800 */
+  margin: 0;
+}
+
+.booked-loading {
+  text-align: center;
+  padding: 2.5rem; /* p-10 */
+}
+
+/* Grid Layout */
+.booked-grid {
+  display: grid;
+  gap: 1rem; /* gap-4 */
+}
+
+/* Card Styling */
+.booked-card {
+  background-color: white;
+  padding: 1.25rem; /* p-5 */
+  border-radius: 0.75rem; /* rounded-xl */
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+  border: 1px solid #e5e7eb; /* border-gray-200 */
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.booked-card:hover {
+  border-color: #3b82f6; /* hover:border-blue-500 */
+}
+
+.booked-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Typography Inside Card */
+.booked-label {
+  font-size: 0.75rem; /* text-xs */
+  font-family: monospace; /* font-mono */
+  color: #9ca3af; /* text-gray-400 */
+  text-transform: uppercase; /* uppercase */
+  margin: 0;
+}
+
+.booked-id {
+  font-weight: bold;
+  color: #374151; /* text-gray-700 */
+  margin: 0;
+}
+
+.booked-right {
+  text-align: right;
+}
+
+.booked-count {
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 600; /* font-semibold */
+  color: #2563eb; /* text-blue-600 */
+  margin: 0;
+}
+
+.booked-hint {
+  font-size: 0.75rem; /* text-xs */
+  color: #9ca3af; /* text-gray-400 */
+  margin: 0;
+}
+
+/* Ticket Tags (Cuplikan Kode) */
+.ticket-tags-container {
+  margin-top: 0.75rem; /* mt-3 */
+  display: flex;
+  gap: 0.5rem; /* gap-2 */
+  overflow-x: auto; /* overflow-x-auto */
+  padding-bottom: 0.5rem; /* pb-2 */
+}
+
+/* Hide scrollbar for a cleaner look */
+.ticket-tags-container::-webkit-scrollbar {
+  height: 4px;
+}
+.ticket-tags-container::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 4px;
+}
+
+.ticket-tag {
+  font-size: 10px; /* text-[10px] */
+  background-color: #f3f4f6; /* bg-gray-100 */
+  padding: 0.25rem 0.5rem; /* px-2 py-1 */
+  border-radius: 0.25rem; /* rounded */
+  font-family: monospace; /* font-mono */
+  white-space: nowrap; /* Mencegah tag terpotong/turun baris */
+}
+
+/* Empty State */
+.booked-empty-state {
+  background-color: white;
+  padding: 2.5rem; /* p-10 */
+  border-radius: 0.75rem; /* rounded-xl */
+  text-align: center;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06); /* shadow-inner */
+}
+
+.booked-empty-text {
+  color: #6b7280; /* text-gray-500 */
+  margin: 0;
+}

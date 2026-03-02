@@ -1,12 +1,13 @@
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useEffect, useCallback } from 'react';
+import '../css/DetailTicketBookedList.css'; // Memanggil CSS baru
 
-// 1. Definisikan Interface sesuai dengan struktur JSON dari API yang baru
+// 1. Definisikan Interface
 interface TicketDetail {
   ticketCode: string;
   ticketName: string;
   eventDate: string;
-  price?: number; // Dibuat opsional berjaga-jaga jika API belum/tidak mengirimkan harga
+  price?: number; 
 }
 
 interface BookedCategory {
@@ -19,7 +20,7 @@ const DetailTicketBookedList = () => {
   const { id } = useParams<{ id: string }>(); 
   const navigate = useNavigate();
 
-  // 2. State disesuaikan untuk menampung array kategori
+  // 2. State
   const [orderCategories, setOrderCategories] = useState<BookedCategory[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +30,6 @@ const DetailTicketBookedList = () => {
   const fetchDetailData = useCallback(async () => {
     try {
       setLoading(true);
-      // Menggunakan endpoint API yang baru sesuai ID
       const response = await fetch(`http://localhost:5287/api/v1/get-booked-ticket/${id}`);
       
       if (!response.ok) throw new Error("Gagal mengambil data pesanan.");
@@ -58,10 +58,10 @@ const DetailTicketBookedList = () => {
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
 
-  if (loading && orderCategories.length === 0) return <div className="p-10 text-center">Memuat Detail Pesanan...</div>;
-  if (error || orderCategories.length === 0) return <div className="p-10 text-center text-red-500">{error || "Data kosong"}</div>;
+  if (loading && orderCategories.length === 0) return <div className="detail-status">Memuat Detail Pesanan...</div>;
+  if (error || orderCategories.length === 0) return <div className="detail-status detail-error">{error || "Data kosong"}</div>;
 
-  // Kalkulasi total bayar berdasarkan quantity kategori * harga tiket (jika ada)
+  // Kalkulasi total
   const totalBayar = orderCategories.reduce((acc, category) => {
     const price = category.tickets[0]?.price || 0;
     return acc + (price * category.quantityPerCategory);
@@ -154,130 +154,112 @@ const DetailTicketBookedList = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <button onClick={() => navigate(-1)} className="mb-4 text-blue-600 font-medium flex items-center hover:underline">
+    <div className="detail-container">
+      <button onClick={() => navigate(-1)} className="detail-back-btn">
         ← Kembali ke Daftar Pesanan
       </button>
 
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-white p-6 rounded-t-2xl border-b border-gray-100 flex justify-between items-center">
+      <div className="detail-wrapper">
+        <div className="detail-header">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">Detail Pesanan</h1>
-            <p className="text-[10px] font-mono text-gray-400 mt-1 uppercase">ID: {id}</p>
+            <h1 className="detail-title">Detail Pesanan</h1>
+            <p className="detail-id">ID: {id}</p>
           </div>
-          <span className="bg-green-100 text-green-700 px-4 py-1 rounded-full text-sm font-bold">Status Pembayaran</span>
+          <span className="detail-status-badge">Status Pembayaran</span>
         </div>
 
-       <div className="space-y-4 mt-4">
-          {/* Mapping kategori, kemudian mapping tiket di dalamnya */}
-          {orderCategories.map((category, catIndex) => (
-            category.tickets.map((ticket, tIndex) => {
-              // Gunakan quantityPerCategory sebagai original quantity
-              const originalQty = category.quantityPerCategory;
-              
-              const currentDisplayQty = draftQuantities[ticket.ticketCode] !== undefined 
-                ? draftQuantities[ticket.ticketCode] 
-                : originalQty;
-              
-              const isChanged = currentDisplayQty !== originalQty;
+       <div className="detail-ticket-list">
+         {orderCategories.map((category, catIndex) => (
+           category.tickets.map((ticket, tIndex) => {
+             const originalQty = category.quantityPerCategory;
+             const currentDisplayQty = draftQuantities[ticket.ticketCode] !== undefined 
+               ? draftQuantities[ticket.ticketCode] 
+               : originalQty;
+             const isChanged = currentDisplayQty !== originalQty;
 
-              return (
-                <div key={ticket.ticketCode} className="bg-white rounded-xl shadow-md overflow-hidden border-l-8 border-blue-500 text-left p-6">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h2 className="text-lg font-bold text-blue-600">
-                        Tiket #{catIndex + 1}.{tIndex + 1} - <span className="text-gray-500 text-sm font-normal">{category.categoryName}</span>
-                      </h2>
-                      
-                      <h3 className="text-base font-semibold text-gray-800 mt-1">
-                        {ticket.ticketName}
-                      </h3>
-                      
-                      {/* Kontrol Jumlah Tiket */}
-                      <div className="flex items-center gap-3 mt-3">
-                        <button 
-                          onClick={() => handleLocalQuantityChange(ticket.ticketCode, originalQty, -1)}
-                          disabled={loading}
-                          className={`w-8 h-8 flex items-center justify-center rounded-full font-bold transition ${
-                            loading ? "bg-gray-100 text-gray-300" : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-                          }`}
-                        >
-                          -
-                        </button>
-                        
-                        <span className={`text-sm font-bold w-12 text-center ${isChanged ? 'text-orange-500' : 'text-gray-800'}`}>
-                          {currentDisplayQty} Pax
-                        </span>
-                        
-                        <button 
-                          onClick={() => handleLocalQuantityChange(ticket.ticketCode, originalQty, 1)}
-                          disabled={loading}
-                          className={`w-8 h-8 flex items-center justify-center rounded-full font-bold transition ${
-                            loading ? "bg-gray-100 text-gray-300" : "bg-blue-100 hover:bg-blue-200 text-blue-600"
-                          }`}
-                        >
-                          +
-                        </button>
+             return (
+               <div key={ticket.ticketCode} className="detail-card">
+                 <div className="detail-card-top">
+                   <div>
+                     <h2 className="detail-card-title">
+                       Tiket #{catIndex + 1}.{tIndex + 1} - <span className="detail-card-category">{category.categoryName}</span>
+                     </h2>
+                     <h3 className="detail-ticket-name">{ticket.ticketName}</h3>
+                     
+                     {/* Kontrol Jumlah Tiket */}
+                     <div className="detail-qty-controls">
+                       <button 
+                         onClick={() => handleLocalQuantityChange(ticket.ticketCode, originalQty, -1)}
+                         disabled={loading}
+                         className={`qty-btn qty-btn-minus ${loading ? "disabled" : ""}`}
+                       >
+                         -
+                       </button>
+                       
+                       <span className={`qty-text ${isChanged ? 'qty-changed' : ''}`}>
+                         {currentDisplayQty} Pax
+                       </span>
+                       
+                       <button 
+                         onClick={() => handleLocalQuantityChange(ticket.ticketCode, originalQty, 1)}
+                         disabled={loading}
+                         className={`qty-btn qty-btn-plus ${loading ? "disabled" : ""}`}
+                       >
+                         +
+                       </button>
 
-                        {isChanged && (
-                          <div className="flex items-center gap-2 ml-2">
-                            <button 
-                              onClick={() => handleSaveQuantity(ticket.ticketCode, originalQty)}
-                              className="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm transition"
-                            >
-                              Simpan
-                            </button>
-                            <button 
-                              onClick={() => handleCancelDraft(ticket.ticketCode)}
-                              className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs px-3 py-1.5 rounded font-bold shadow-sm transition"
-                            >
-                              Batal
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                       {isChanged && (
+                         <div className="qty-actions">
+                           <button onClick={() => handleSaveQuantity(ticket.ticketCode, originalQty)} className="qty-save-btn">
+                             Simpan
+                           </button>
+                           <button onClick={() => handleCancelDraft(ticket.ticketCode)} className="qty-cancel-btn">
+                             Batal
+                           </button>
+                         </div>
+                       )}
+                     </div>
+                   </div>
 
-                    <div className="flex flex-col items-end">
-                      <p className="text-gray-400 uppercase text-[10px] tracking-widest">Kode Tiket</p>
-                      <p className="font-mono font-bold text-gray-800 bg-gray-100 px-2 py-1 rounded mb-2">
-                        {ticket.ticketCode.split('-')[0]}...
-                      </p>
-                      
-                      <button 
-                        onClick={() => handleDeleteTicket(ticket.ticketCode, originalQty)}
-                        className="text-[10px] text-red-500 hover:text-red-700 font-bold flex items-center gap-1 border border-red-200 px-2 py-1 rounded bg-red-50"
-                      >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        HAPUS TIKET
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-4 pt-4 border-t border-dashed border-gray-200 flex items-center gap-4">
-                    <div className="w-16 h-16 bg-gray-200 flex items-center justify-center text-[10px] text-gray-500 font-bold border-2 border-gray-300">QR</div>
-                    <div>
-                      <p className="text-sm font-bold text-gray-700">
-                        {/* Langsung render eventDate dari API */}
-                        Jadwal: {ticket.eventDate}
-                      </p>
-                      <p className="text-[11px] text-gray-400">Harga Satuan: {ticket.price ? formatCurrency(ticket.price) : 'Gratis / TBD'}</p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          ))}
-        </div>
+                   <div className="detail-card-right">
+                     <p className="detail-code-label">Kode Tiket</p>
+                     <p className="detail-code-value">
+                       {ticket.ticketCode.split('-')[0]}...
+                     </p>
+                     
+                     <button 
+                       onClick={() => handleDeleteTicket(ticket.ticketCode, originalQty)}
+                       className="detail-delete-btn"
+                     >
+                       <svg className="delete-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                       </svg>
+                       HAPUS TIKET
+                     </button>
+                   </div>
+                 </div>
+                 
+                 <div className="detail-card-bottom">
+                   <div className="detail-qr-placeholder">QR</div>
+                   <div>
+                     <p className="detail-date-text">
+                       Jadwal: {ticket.eventDate}
+                     </p>
+                     <p className="detail-price-text">Harga Satuan: {ticket.price ? formatCurrency(ticket.price) : 'Gratis / TBD'}</p>
+                   </div>
+                 </div>
+               </div>
+             );
+           })
+         ))}
+       </div>
 
-        <div className="mt-6 bg-gray-800 p-6 rounded-xl flex justify-between items-center text-white shadow-lg">
+        <div className="detail-footer">
           <div>
-            <p className="text-xs text-gray-400 uppercase">Total Pembayaran</p>
-            <p className="text-xl font-bold">{formatCurrency(totalBayar)}</p>
+            <p className="footer-label">Total Pembayaran</p>
+            <p className="footer-total">{formatCurrency(totalBayar)}</p>
           </div>
-          <button className="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded-lg font-bold">Download PDF</button>
+          <button className="footer-download-btn">Download PDF</button>
         </div>
       </div>
     </div>

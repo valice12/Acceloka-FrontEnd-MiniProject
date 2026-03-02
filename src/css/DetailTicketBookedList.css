@@ -1,0 +1,329 @@
+/* Container Umum */
+.detail-container {
+  min-height: 100vh;
+  background-color: #f3f4f6; /* bg-gray-100 */
+  padding: 1.5rem; /* p-6 */
+  box-sizing: border-box;
+}
+
+.detail-status {
+  padding: 2.5rem; /* p-10 */
+  text-align: center;
+}
+
+.detail-error {
+  color: #ef4444; /* text-red-500 */
+}
+
+/* Tombol Kembali */
+.detail-back-btn {
+  margin-bottom: 1rem; /* mb-4 */
+  color: #2563eb; /* text-blue-600 */
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: 1rem;
+}
+
+.detail-back-btn:hover {
+  text-decoration: underline;
+}
+
+/* Wrapper Layout */
+.detail-wrapper {
+  max-width: 48rem; /* max-w-3xl */
+  margin: 0 auto;
+}
+
+/* Header Pesanan */
+.detail-header {
+  background-color: white;
+  padding: 1.5rem; /* p-6 */
+  border-top-left-radius: 1rem; /* rounded-t-2xl */
+  border-top-right-radius: 1rem;
+  border-bottom: 1px solid #f3f4f6; /* border-gray-100 */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-title {
+  font-size: 1.25rem; /* text-xl */
+  font-weight: bold;
+  color: #1f2937; /* text-gray-800 */
+  margin: 0;
+}
+
+.detail-id {
+  font-size: 10px; /* text-[10px] */
+  font-family: monospace; /* font-mono */
+  color: #9ca3af; /* text-gray-400 */
+  margin-top: 0.25rem; /* mt-1 */
+  text-transform: uppercase; /* uppercase */
+}
+
+.detail-status-badge {
+  background-color: #d1fae5; /* bg-green-100 */
+  color: #15803d; /* text-green-700 */
+  padding: 0.25rem 1rem; /* px-4 py-1 */
+  border-radius: 9999px; /* rounded-full */
+  font-size: 0.875rem; /* text-sm */
+  font-weight: bold;
+}
+
+/* List Tiket */
+.detail-ticket-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem; /* space-y-4 */
+  margin-top: 1rem; /* mt-4 */
+}
+
+/* Card Tiket */
+.detail-card {
+  background-color: white;
+  border-radius: 0.75rem; /* rounded-xl */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); /* shadow-md */
+  overflow: hidden;
+  border-left: 8px solid #3b82f6; /* border-l-8 border-blue-500 */
+  text-align: left;
+  padding: 1.5rem; /* p-6 */
+}
+
+.detail-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.detail-card-title {
+  font-size: 1.125rem; /* text-lg */
+  font-weight: bold;
+  color: #2563eb; /* text-blue-600 */
+  margin: 0;
+}
+
+.detail-card-category {
+  color: #6b7280; /* text-gray-500 */
+  font-size: 0.875rem; /* text-sm */
+  font-weight: normal;
+}
+
+.detail-ticket-name {
+  font-size: 1rem; /* text-base */
+  font-weight: 600; /* font-semibold */
+  color: #1f2937; /* text-gray-800 */
+  margin-top: 0.25rem; /* mt-1 */
+  margin-bottom: 0;
+}
+
+/* Kontrol Kuantitas */
+.detail-qty-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem; /* gap-3 */
+  margin-top: 0.75rem; /* mt-3 */
+}
+
+.qty-btn {
+  width: 2rem; /* w-8 */
+  height: 2rem; /* h-8 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px; /* rounded-full */
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.qty-btn-minus {
+  background-color: #e5e7eb; /* bg-gray-200 */
+  color: #374151; /* text-gray-700 */
+}
+.qty-btn-minus:hover:not(.disabled) { background-color: #d1d5db; /* hover:bg-gray-300 */ }
+
+.qty-btn-plus {
+  background-color: #dbeafe; /* bg-blue-100 */
+  color: #2563eb; /* text-blue-600 */
+}
+.qty-btn-plus:hover:not(.disabled) { background-color: #bfdbfe; /* hover:bg-blue-200 */ }
+
+.qty-btn.disabled {
+  background-color: #f3f4f6; /* bg-gray-100 */
+  color: #d1d5db; /* text-gray-300 */
+  cursor: not-allowed;
+}
+
+.qty-text {
+  font-size: 0.875rem; /* text-sm */
+  font-weight: bold;
+  width: 3rem; /* w-12 */
+  text-align: center;
+  color: #1f2937; /* text-gray-800 */
+}
+
+.qty-text.qty-changed {
+  color: #f97316; /* text-orange-500 */
+}
+
+.qty-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; /* gap-2 */
+  margin-left: 0.5rem; /* ml-2 */
+}
+
+.qty-save-btn, .qty-cancel-btn {
+  font-size: 0.75rem; /* text-xs */
+  padding: 0.375rem 0.75rem; /* px-3 py-1.5 */
+  border-radius: 0.25rem; /* rounded */
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+  transition: all 0.2s;
+}
+
+.qty-save-btn {
+  background-color: #22c55e; /* bg-green-500 */
+  color: white;
+}
+.qty-save-btn:hover { background-color: #16a34a; }
+
+.qty-cancel-btn {
+  background-color: #e5e7eb; /* bg-gray-200 */
+  color: #374151; /* text-gray-700 */
+}
+.qty-cancel-btn:hover { background-color: #d1d5db; }
+
+/* Bagian Kanan Card */
+.detail-card-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.detail-code-label {
+  color: #9ca3af; /* text-gray-400 */
+  text-transform: uppercase;
+  font-size: 10px; /* text-[10px] */
+  letter-spacing: 0.1em; /* tracking-widest */
+  margin: 0;
+}
+
+.detail-code-value {
+  font-family: monospace; /* font-mono */
+  font-weight: bold;
+  color: #1f2937; /* text-gray-800 */
+  background-color: #f3f4f6; /* bg-gray-100 */
+  padding: 0.25rem 0.5rem; /* px-2 py-1 */
+  border-radius: 0.25rem; /* rounded */
+  margin: 0.5rem 0; /* mb-2 */
+}
+
+.detail-delete-btn {
+  font-size: 10px; /* text-[10px] */
+  color: #ef4444; /* text-red-500 */
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem; /* gap-1 */
+  border: 1px solid #fecaca; /* border-red-200 */
+  padding: 0.25rem 0.5rem; /* px-2 py-1 */
+  border-radius: 0.25rem; /* rounded */
+  background-color: #fef2f2; /* bg-red-50 */
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.detail-delete-btn:hover {
+  color: #b91c1c; /* hover:text-red-700 */
+}
+
+.delete-icon {
+  width: 0.75rem; /* w-3 */
+  height: 0.75rem; /* h-3 */
+}
+
+/* Bagian Bawah Card (QR & Harga) */
+.detail-card-bottom {
+  margin-top: 1rem; /* mt-4 */
+  padding-top: 1rem; /* pt-4 */
+  border-top: 1px dashed #e5e7eb; /* border-t border-dashed border-gray-200 */
+  display: flex;
+  align-items: center;
+  gap: 1rem; /* gap-4 */
+}
+
+.detail-qr-placeholder {
+  width: 4rem; /* w-16 */
+  height: 4rem; /* h-16 */
+  background-color: #e5e7eb; /* bg-gray-200 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px; /* text-[10px] */
+  color: #6b7280; /* text-gray-500 */
+  font-weight: bold;
+  border: 2px solid #d1d5db; /* border-2 border-gray-300 */
+}
+
+.detail-date-text {
+  font-size: 0.875rem; /* text-sm */
+  font-weight: bold;
+  color: #374151; /* text-gray-700 */
+  margin: 0;
+}
+
+.detail-price-text {
+  font-size: 11px; /* text-[11px] */
+  color: #9ca3af; /* text-gray-400 */
+  margin: 0;
+}
+
+/* Footer Total Pembayaran */
+.detail-footer {
+  margin-top: 1.5rem; /* mt-6 */
+  background-color: #1f2937; /* bg-gray-800 */
+  padding: 1.5rem; /* p-6 */
+  border-radius: 0.75rem; /* rounded-xl */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); /* shadow-lg */
+}
+
+.footer-label {
+  font-size: 0.75rem; /* text-xs */
+  color: #9ca3af; /* text-gray-400 */
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.footer-total {
+  font-size: 1.25rem; /* text-xl */
+  font-weight: bold;
+  margin: 0;
+}
+
+.footer-download-btn {
+  background-color: #3b82f6; /* bg-blue-500 */
+  color: white;
+  padding: 0.5rem 1.5rem; /* px-6 py-2 */
+  border-radius: 0.5rem; /* rounded-lg */
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.footer-download-btn:hover {
+  background-color: #2563eb; /* hover:bg-blue-600 */
+}

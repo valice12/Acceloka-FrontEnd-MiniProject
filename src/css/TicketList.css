@@ -1,0 +1,96 @@
+/* --- TicketList Styles --- */
+
+/* State Containers (Loading / Error) */
+.state-container {
+  padding: 2.5rem;
+  text-align: center;
+}
+
+.error-text {
+  color: #ef4444; /* text-red-500 */
+}
+
+/* Ticket List Container */
+.ticket-list-container {
+  padding: 1rem;
+}
+
+.ticket-list-title {
+  font-size: 1.5rem; /* text-2xl */
+  font-weight: bold;
+  margin-bottom: 1.5rem; /* mb-6 */
+  text-align: left;
+}
+
+/* Ticket Grid */
+.ticket-grid {
+  display: grid;
+  grid-template-columns: 1fr; /* grid-cols-1 */
+  gap: 1rem; /* gap-4 */
+  text-align: left;
+}
+
+/* Hapus styling bawaan Link dari React Router */
+.ticket-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Ticket Card */
+.ticket-card {
+  display: flex;
+  background-color: white;
+  border: 1px solid #e5e7eb; /* border-gray-200 */
+  border-radius: 0.75rem; /* rounded-xl */
+  overflow: hidden;
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.ticket-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* hover:shadow-md */
+}
+
+.ticket-card-accent {
+  background-color: #2563eb; /* bg-blue-600 */
+  width: 0.5rem; /* w-2 */
+  height: auto; /* mengikuti tinggi container */
+  align-self: stretch; /* memastikan tingginya full (h-full) */
+}
+
+.ticket-card-content {
+  padding: 1.25rem; /* p-5 */
+  flex: 1; /* flex-1 */
+}
+
+.ticket-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.25rem;
+}
+
+.ticket-title {
+  font-weight: bold;
+  font-size: 1.125rem; /* text-lg */
+  margin: 0;
+  color: #111827;
+}
+
+.ticket-price {
+  font-size: 0.875rem; /* text-sm */
+  font-weight: bold;
+  color: #2563eb; /* text-blue-600 */
+}
+
+.ticket-details {
+  font-size: 0.875rem; /* text-sm */
+  color: #6b7280; /* text-gray-500 */
+  margin: 0;
+  margin-top: 0.25rem;
+}
+
+.ticket-not-found {
+  color: #9ca3af; /* text-gray-400 */
+  font-style: italic;
+  margin: 0;
+}
