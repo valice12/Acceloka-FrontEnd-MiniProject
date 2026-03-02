@@ -58,7 +58,9 @@ const DetailTicket = () => {
 
     // HANDLER 1: Tambah ke Keranjang (Hanya state lokal Front-End)
     const handleAddToCart = () => {
-        if (!ticket) return;
+        if (!ticket) {
+            return;
+        }
 
         const isEventStarted = new Date(ticket.eventDateStart) <= new Date();
         if (isEventStarted) {
@@ -77,7 +79,9 @@ const DetailTicket = () => {
 
     // HANDLER 2: Pesan Langsung (Langsung POST API)
     const handleBookNow = async () => {
-        if (!ticket) return;
+        if (!ticket) {
+            return;
+        }
 
         const isEventStarted = new Date(ticket.eventDateStart) <= new Date();
         if (isEventStarted) {
@@ -115,8 +119,13 @@ const DetailTicket = () => {
         }
     };
     
-    if (isLoading) return <div className="p-10 text-center">Memuat detail tiket...</div>;
-    if (!ticket) return <div className="p-10 text-center">Tiket tidak ditemukan.</div>;
+    if (isLoading) {
+        return <div className="dt-status">Memuat detail tiket...</div>;
+    }
+    
+    if (!ticket) {
+        return <div className="dt-status">Tiket tidak ditemukan.</div>;
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col relative pb-24 text-left">

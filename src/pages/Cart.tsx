@@ -24,7 +24,9 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const useCart = () => {
     const context = useContext(CartContext);
-    if (!context) throw new Error("useCart harus digunakan di dalam CartProvider");
+    if (!context) {
+        throw new Error("useCart harus digunakan di dalam CartProvider");
+    }
     return context;
 };
 
@@ -79,7 +81,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
     // Fungsi Checkout ke API
     const handleCheckout = async () => {
-        if (cartItems.length === 0) return;
+        if (cartItems.length === 0) {
+            return;
+        }
 
         try {
             setIsBooking(true);
