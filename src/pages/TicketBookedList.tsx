@@ -1,47 +1,6 @@
-// import { Link } from 'react-router-dom';
-
-// interface Props {
-//   searchQuery: string;
-// }
-
-// const TicketBookedList: React.FC<Props> = ({ searchQuery }) => {
-//   const bookedTickets = [
-//     { id: "BKD-101", judul: "Konser Coldplay", tanggalPesan: "24 Feb 2026", status: "Sudah Bayar" },
-//     { id: "BKD-102", judul: "Seminar Tech 2026", tanggalPesan: "20 Feb 2026", status: "Menunggu Pembayaran" },
-//   ];
-
-//   // Logika Filter: Mencari berdasarkan ID atau Judul
-//   const filteredTickets = bookedTickets.filter((ticket) => 
-//     ticket.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-//     ticket.judul.toLowerCase().includes(searchQuery.toLowerCase())
-//   );
-
-//   return (
-//     <div>
-//       <h1 className="text-2xl font-bold mb-6 text-left">My Bookings</h1>
-//       <div className="space-y-4">
-//         {filteredTickets.length > 0 ? (
-//           filteredTickets.map((ticket) => (
-//             <div key={ticket.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-//                {/* ... isi card seperti sebelumnya ... */}
-//                <Link to={`/bookedticketlist/${ticket.id}`} className="text-blue-600 font-bold uppercase">
-//                  Detail: {ticket.id}
-//                </Link>
-//             </div>
-//           ))
-//         ) : (
-//           <p className="text-gray-500 italic">Pesanan dengan ID "{searchQuery}" tidak ditemukan.</p>
-//         )}
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default TicketBookedList;
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../css/TicketBookedList.css'; // Memanggil file CSS yang baru
+import '../css/TicketBookedList.css'; 
 
 // --- 1. Definisi Interface ---
 interface Ticket {
@@ -59,47 +18,92 @@ interface BookedOrder {
   totalTicketsInOrder: number;
 }
 
+interface TicketMaster {
+  ticketCode: string;
+  ticketName: string;
+  categoryName: string;
+}
+
 interface TicketBookedListProps {
   searchQuery: string;
 }
 
 const TicketBookedList: React.FC<TicketBookedListProps> = ({ searchQuery }) => {
   const [orders, setOrders] = useState<BookedOrder[]>([]);
+  const [ticketMaster, setTicketMaster] = useState<TicketMaster[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchOrders = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('http://localhost:5287/api/v1/get-all-booked-tickets');
-        const data = await response.json();
-        setOrders(data.listBookedTickets);
+        setLoading(true);
+        // Mengambil data Booking dan data Master Tiket secara paralel
+        const [resOrders, resMaster] = await Promise.all([
+          fetch('http://localhost:5287/api/v1/get-all-booked-tickets'),
+          fetch('http://localhost:5287/api/v1/get-available-ticket')
+        ]);
+
+        if (!resOrders.ok || !resMaster.ok) {
+          throw new Error('Gagal mengambil data dari server');
+        }
+
+        const dataOrders = await resOrders.json();
+        const dataMaster = await resMaster.json();
+
+        setOrders(dataOrders.listBookedTickets);
+        setTicketMaster(dataMaster);
       } catch (error) {
         console.error("Error fetching bookings:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchOrders();
+    fetchData();
   }, []);
 
-  // --- LOGIKA PENCARIAN ---
-  const filteredOrders = orders.filter((order) => {
-    const query = searchQuery.toLowerCase();
-    
-    // Cek apakah ID Pesanan cocok
-    const matchOrderId = order.bookedTicketId.toLowerCase().includes(query);
-    
-    // Cek apakah ada salah satu kode tiket di dalam array tickets yang cocok
-    const matchTicketCode = order.tickets.some(ticket => 
-      ticket.ticketCode.toLowerCase().includes(query)
-    );
+  // Helper untuk mencari info tiket dari master data
+  const getTicketInfo = (code: string) => {
+    const found = ticketMaster.find((tm) => {
+      return tm.ticketCode === code;
+    });
+    return found || { ticketName: code, categoryName: 'Unknown' };
+  };
 
-    return matchOrderId || matchTicketCode;
-  });
+  // Helper untuk format tanggal
+  const formatDate = (dateString: string) => {
+    if (!dateString) {
+      return "-";
+    }
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    }).format(date);
+  };
+
+  // --- LOGIKA PENCARIAN (Berdasarkan ID, Nama Tiket, atau Kategori) ---
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      const query = searchQuery.toLowerCase();
+      const matchOrderId = order.bookedTicketId.toLowerCase().includes(query);
+      
+      const matchTicketContent = order.tickets.some((t) => {
+        const info = getTicketInfo(t.ticketCode);
+        return (
+          t.ticketCode.toLowerCase().includes(query) ||
+          info.ticketName.toLowerCase().includes(query) ||
+          info.categoryName.toLowerCase().includes(query)
+        );
+      });
+
+      return matchOrderId || matchTicketContent;
+    });
+  }, [orders, ticketMaster, searchQuery]);
 
   if (loading) {
-      return <div className="booked-loading">Loading bookings...</div>;
+    return <div className="booked-loading">Loading bookings...</div>;
   }
   
   return (
@@ -108,35 +112,52 @@ const TicketBookedList: React.FC<TicketBookedListProps> = ({ searchQuery }) => {
       
       {filteredOrders.length > 0 ? (
         <div className="booked-grid">
-          {filteredOrders.map((order) => (
-            <div 
-              key={order.bookedTicketId}
-              onClick={() => navigate(`/bookedticketlist/${order.bookedTicketId}`)}
-              className="booked-card"
-            >
-              <div className="booked-card-header">
-                <div>
-                  <p className="booked-label">BookedTicket ID</p>
-                  <p className="booked-id">{order.bookedTicketId}</p>
+          {filteredOrders.map((order) => {
+            const pDate = order.tickets[0]?.purchaseDate;
+
+            return (
+              <div 
+                key={order.bookedTicketId}
+                onClick={() => {
+                  navigate(`/bookedticketlist/${order.bookedTicketId}`, {
+                    state: { purchaseDate: pDate }
+                  });
+                }}
+                className="booked-card"
+              >
+                <div className="booked-card-header">
+                  <div className="booked-left">
+                    <p className="booked-label">BookedTicket ID</p>
+                    <p className="booked-id">{order.bookedTicketId}</p>
+                    {/* Menampilkan Tanggal Pembelian */}
+                    <p className="booked-date">Dibeli: {formatDate(pDate)}</p>
+                  </div>
+                  <div className="booked-right text-right">
+                    <p className="booked-count">
+                      {order.totalTicketsInOrder} Tiket
+                    </p>
+                    <p className="booked-hint italic">Klik untuk detail</p>
+                  </div>
                 </div>
-                <div className="booked-right">
-                  <p className="booked-count">
-                    {order.totalTicketsInOrder} Tiket
-                  </p>
-                  <p className="booked-hint">Klik untuk detail</p>
+                
+                {/* Menampilkan Nama Tiket & Kategori alih-alih hanya ID */}
+                <div className="ticket-tags-container">
+                  <p className="ticket-tags-label">Daftar Tiket:</p>
+                  <div className="ticket-tags-list">
+                    {order.tickets.map((t) => {
+                      const info = getTicketInfo(t.ticketCode);
+                      return (
+                        <div key={t.ticketCode} className="ticket-tag-item">
+                          <span className="tag-ticket-name">{info.ticketName}</span>
+                          <span className="tag-ticket-category">{info.categoryName}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-              
-              {/* Menampilkan cuplikan kode tiket yang ada di dalamnya */}
-              <div className="ticket-tags-container">
-                {order.tickets.map(t => (
-                  <span key={t.ticketCode} className="ticket-tag">
-                    {t.ticketCode.split('-')[0]}...
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="booked-empty-state">

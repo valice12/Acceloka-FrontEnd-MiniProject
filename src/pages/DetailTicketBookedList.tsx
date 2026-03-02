@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import '../css/DetailTicketBookedList.css'; // Memanggil CSS baru
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import '../css/DetailTicketBookedList.css'; 
 
 // 1. Definisikan Interface
 interface TicketDetail {
@@ -16,12 +16,22 @@ interface BookedCategory {
   tickets: TicketDetail[];
 }
 
+interface TicketMaster {
+  ticketCode: string;
+  price: number;
+}
+
 const DetailTicketBookedList = () => {
   const { id } = useParams<{ id: string }>(); 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Menangkap purchaseDate yang dikirim dari halaman list sebelumnya
+  const purchaseDateFromState = location.state?.purchaseDate;
 
   // 2. State
   const [orderCategories, setOrderCategories] = useState<BookedCategory[]>([]);
+  const [ticketMaster, setTicketMaster] = useState<TicketMaster[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -30,16 +40,23 @@ const DetailTicketBookedList = () => {
   const fetchDetailData = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:5287/api/v1/get-booked-ticket/${id}`);
+      // Fetch detail pesanan dan data master (untuk ambil harga) secara paralel
+      const [resDetail, resMaster] = await Promise.all([
+        fetch(`http://localhost:5287/api/v1/get-booked-ticket/${id}`),
+        fetch(`http://localhost:5287/api/v1/get-available-ticket`)
+      ]);
       
-      if (!response.ok) {
-          throw new Error("Gagal mengambil data pesanan.");
+      if (!resDetail.ok || !resMaster.ok) {
+        throw new Error("Gagal mengambil data dari server.");
       }      
 
-      const data: BookedCategory[] = await response.json();
+      const dataDetail: BookedCategory[] = await resDetail.json();
+      const dataMaster: TicketMaster[] = await resMaster.json();
 
-      if (data && data.length > 0) {
-        setOrderCategories(data);
+      setTicketMaster(dataMaster);
+
+      if (dataDetail && dataDetail.length > 0) {
+        setOrderCategories(dataDetail);
         setError(null);
       } else {
         setError("Data pesanan tidak ditemukan.");
@@ -57,47 +74,74 @@ const DetailTicketBookedList = () => {
     }
   }, [fetchDetailData]);
 
-  const formatCurrency = (val: number) => 
-    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
+  // Helper mencari harga
+  const getPriceByCode = (code: string): number => {
+    const found = ticketMaster.find((item) => {
+      return item.ticketCode === code;
+    });
+    return found ? found.price : 0;
+  };
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('id-ID', { 
+      style: 'currency', 
+      currency: 'IDR', 
+      minimumFractionDigits: 0 
+    }).format(val);
+  };
+
+  const formatDateTime = (dateString?: string) => {
+    if (!dateString) {
+      return "-";
+    }
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  };
+
+  // Kalkulasi total bayar menggunakan harga dari master data
+  const totalBayar = useMemo(() => {
+    return orderCategories.reduce((acc, category) => {
+      const price = getPriceByCode(category.tickets[0]?.ticketCode);
+      return acc + (price * category.quantityPerCategory);
+    }, 0);
+  }, [orderCategories, ticketMaster]);
 
   if (loading && orderCategories.length === 0) {
-      return <div className="detail-status">Memuat Detail Pesanan...</div>;
-    }
+    return <div className="detail-status">Memuat Detail Pesanan...</div>;
+  }
 
   if (error || orderCategories.length === 0) {
-      return <div className="detail-status detail-error">{error || "Data kosong"}</div>;
+    return <div className="detail-status detail-error">{error || "Data kosong"}</div>;
   }
-// Kalkulasi total
-  const totalBayar = orderCategories.reduce((acc, category) => {
-    const price = category.tickets[0]?.price || 0;
-    return acc + (price * category.quantityPerCategory);
-  }, 0);
 
   const handleLocalQuantityChange = (ticketCode: string, originalQty: number, delta: number) => {
     const currentQty = draftQuantities[ticketCode] !== undefined ? draftQuantities[ticketCode] : originalQty;
     const newQuantity = currentQty + delta;
 
     if (newQuantity < 1) {
-      alert("Jumlah tiket minimal adalah 1. Gunakan tombol hapus jika ingin membatalkan tiket.");
+      alert("Jumlah tiket minimal adalah 1.");
       return;
     }
 
-    setDraftQuantities(prev => ({
-      ...prev,
-      [ticketCode]: newQuantity
-    }));
+    setDraftQuantities((prev) => {
+      return { ...prev, [ticketCode]: newQuantity };
+    });
   };
 
   const handleSaveQuantity = async (ticketCode: string, originalQty: number) => {
     const newQuantity = draftQuantities[ticketCode];
     
     if (!newQuantity || newQuantity === originalQty) {
-        return;
+      return;
     }
-    const action = newQuantity > originalQty ? "menambah" : "mengurangi";
-    const confirmMsg = `Apakah Anda yakin ingin ${action} jumlah tiket menjadi ${newQuantity}?`;
 
-    if (window.confirm(confirmMsg)) {
+    if (window.confirm(`Yakin ingin mengubah jumlah menjadi ${newQuantity}?`)) {
       try {
         setLoading(true);
         const response = await fetch(`http://localhost:5287/api/v1/edit-booked-ticket/${id}`, {
@@ -109,20 +153,17 @@ const DetailTicketBookedList = () => {
         });
 
         if (response.ok) {
-          alert("Berhasil memperbarui jumlah tiket.");
-          
-          setDraftQuantities(prev => {
+          alert("Berhasil diperbarui.");
+          setDraftQuantities((prev) => {
             const newState = { ...prev };
             delete newState[ticketCode];
             return newState;
           });
-
           await fetchDetailData(); 
         } else {
-          alert("Gagal memperbarui tiket. Silakan cek koneksi atau ketersediaan tiket.");
+          alert("Gagal memperbarui tiket.");
         }
       } catch (err) {
-        console.error(err);
         alert("Terjadi kesalahan sistem.");
       } finally {
         setLoading(false);
@@ -130,16 +171,8 @@ const DetailTicketBookedList = () => {
     }
   };
 
-  const handleCancelDraft = (ticketCode: string) => {
-    setDraftQuantities(prev => {
-      const newState = { ...prev };
-      delete newState[ticketCode];
-      return newState;
-    });
-  };
-
   const handleDeleteTicket = async (ticketCode: string, currentQuantity: number) => {
-    if (window.confirm("PERINGATAN: Tiket yang sudah dihapus tidak dapat dikembalikan. Lanjutkan hapus tiket?")) {
+    if (window.confirm("Lanjutkan hapus tiket?")) {
       try {
         setLoading(true);
         const response = await fetch(`http://localhost:5287/api/v1/revoke-ticket/${id}/${ticketCode}/${currentQuantity}`, {
@@ -149,11 +182,9 @@ const DetailTicketBookedList = () => {
         if (response.ok) {
           alert("Tiket berhasil dihapus.");
           await fetchDetailData(); 
-        } else {
-          alert("Gagal menghapus tiket.");
         }
       } catch (err) {
-        alert("Terjadi kesalahan saat menghapus.");
+        alert("Terjadi kesalahan.");
       } finally {
         setLoading(false);
       }
@@ -162,107 +193,99 @@ const DetailTicketBookedList = () => {
 
   return (
     <div className="detail-container">
-      <button onClick={() => navigate(-1)} className="detail-back-btn">
+      <button onClick={() => { navigate(-1); }} className="detail-back-btn">
         ← Kembali ke Daftar Pesanan
       </button>
 
       <div className="detail-wrapper">
         <div className="detail-header">
-          <div>
+          <div className="detail-header-left">
             <h1 className="detail-title">Detail Pesanan</h1>
             <p className="detail-id">ID: {id}</p>
+            {/* Tampilan purchaseDate yang diparse dari list */}
+            <p className="detail-purchase-date">
+              Dibeli pada: <strong>{formatDateTime(purchaseDateFromState)}</strong>
+            </p>
           </div>
-          <span className="detail-status-badge">Status Pembayaran</span>
+          <span className="detail-status-badge">PAID / LUNAS</span>
         </div>
 
-       <div className="detail-ticket-list">
-         {orderCategories.map((category, catIndex) => (
-           category.tickets.map((ticket, tIndex) => {
-             const originalQty = category.quantityPerCategory;
-             const currentDisplayQty = draftQuantities[ticket.ticketCode] !== undefined 
-               ? draftQuantities[ticket.ticketCode] 
-               : originalQty;
-             const isChanged = currentDisplayQty !== originalQty;
+        <div className="detail-ticket-list">
+          {orderCategories.map((category, catIndex) => {
+            return category.tickets.map((ticket, tIndex) => {
+              const originalQty = category.quantityPerCategory;
+              const currentDisplayQty = draftQuantities[ticket.ticketCode] !== undefined 
+                ? draftQuantities[ticket.ticketCode] 
+                : originalQty;
+              const isChanged = currentDisplayQty !== originalQty;
+              const unitPrice = getPriceByCode(ticket.ticketCode);
 
-             return (
-               <div key={ticket.ticketCode} className="detail-card">
-                 <div className="detail-card-top">
-                   <div>
-                     <h2 className="detail-card-title">
-                       Tiket #{catIndex + 1}.{tIndex + 1} - <span className="detail-card-category">{category.categoryName}</span>
-                     </h2>
-                     <h3 className="detail-ticket-name">{ticket.ticketName}</h3>
-                     
-                     {/* Kontrol Jumlah Tiket */}
-                     <div className="detail-qty-controls">
-                       <button 
-                         onClick={() => handleLocalQuantityChange(ticket.ticketCode, originalQty, -1)}
-                         disabled={loading}
-                         className={`qty-btn qty-btn-minus ${loading ? "disabled" : ""}`}
-                       >
-                         -
-                       </button>
-                       
-                       <span className={`qty-text ${isChanged ? 'qty-changed' : ''}`}>
-                         {currentDisplayQty} Pax
-                       </span>
-                       
-                       <button 
-                         onClick={() => handleLocalQuantityChange(ticket.ticketCode, originalQty, 1)}
-                         disabled={loading}
-                         className={`qty-btn qty-btn-plus ${loading ? "disabled" : ""}`}
-                       >
-                         +
-                       </button>
+              return (
+                <div key={ticket.ticketCode} className="detail-card">
+                  <div className="detail-card-top">
+                    <div className="detail-card-info">
+                      <h2 className="detail-card-title">
+                        Tiket #{catIndex + 1}.{tIndex + 1} - <span className="detail-card-category">{category.categoryName}</span>
+                      </h2>
+                      <h3 className="detail-ticket-name">{ticket.ticketName}</h3>
+                      
+                      <div className="detail-qty-controls">
+                        <button 
+                          onClick={() => { handleLocalQuantityChange(ticket.ticketCode, originalQty, -1); }}
+                          disabled={loading}
+                          className="qty-btn"
+                        > - </button>
+                        
+                        <span className={`qty-text ${isChanged ? 'qty-changed' : ''}`}>
+                          {currentDisplayQty} Pax
+                        </span>
+                        
+                        <button 
+                          onClick={() => { handleLocalQuantityChange(ticket.ticketCode, originalQty, 1); }}
+                          disabled={loading}
+                          className="qty-btn"
+                        > + </button>
 
-                       {isChanged && (
-                         <div className="qty-actions">
-                           <button onClick={() => handleSaveQuantity(ticket.ticketCode, originalQty)} className="qty-save-btn">
-                             Simpan
-                           </button>
-                           <button onClick={() => handleCancelDraft(ticket.ticketCode)} className="qty-cancel-btn">
-                             Batal
-                           </button>
-                         </div>
-                       )}
-                     </div>
-                   </div>
+                        {isChanged && (
+                          <div className="qty-actions">
+                            <button onClick={() => { handleSaveQuantity(ticket.ticketCode, originalQty); }} className="qty-save-btn">Simpan</button>
+                            <button onClick={() => { setDraftQuantities({}); }} className="qty-cancel-btn">Batal</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-                   <div className="detail-card-right">
-                     <p className="detail-code-label">Kode Tiket</p>
-                     <p className="detail-code-value">
-                       {ticket.ticketCode.split('-')[0]}...
-                     </p>
-                     
-                     <button 
-                       onClick={() => handleDeleteTicket(ticket.ticketCode, originalQty)}
-                       className="detail-delete-btn"
-                     >
-                       <svg className="delete-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                       </svg>
-                       HAPUS TIKET
-                     </button>
-                   </div>
-                 </div>
-                 
-                 <div className="detail-card-bottom">
-                   <div className="detail-qr-placeholder">QR</div>
-                   <div>
-                     <p className="detail-date-text">
-                       Jadwal: {ticket.eventDate}
-                     </p>
-                     <p className="detail-price-text">Harga Satuan: {ticket.price ? formatCurrency(ticket.price) : 'Gratis / TBD'}</p>
-                   </div>
-                 </div>
-               </div>
-             );
-           })
-         ))}
-       </div>
+                    <div className="detail-card-right">
+                      <p className="detail-code-label">Kode Tiket</p>
+                      <p className="detail-code-value">
+                        {ticket.ticketCode.substring(0, 8)}...
+                      </p>
+                      
+                      <button 
+                        onClick={() => { handleDeleteTicket(ticket.ticketCode, originalQty); }}
+                        className="detail-delete-btn"
+                      >
+                        HAPUS
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="detail-card-bottom">
+                    <div className="detail-qr-placeholder">QR</div>
+                    <div className="detail-price-info">
+                      <p className="detail-date-text">Jadwal: {ticket.eventDate}</p>
+                      <p className="detail-price-text">Harga Satuan: {formatCurrency(unitPrice)}</p>
+                      <p className="detail-subtotal-text">Subtotal: {formatCurrency(unitPrice * currentDisplayQty)}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            });
+          })}
+        </div>
 
         <div className="detail-footer">
-          <div>
+          <div className="footer-info">
             <p className="footer-label">Total Pembayaran</p>
             <p className="footer-total">{formatCurrency(totalBayar)}</p>
           </div>

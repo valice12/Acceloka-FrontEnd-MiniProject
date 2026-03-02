@@ -327,3 +327,21 @@
 .footer-download-btn:hover {
   background-color: #2563eb; /* hover:bg-blue-600 */
 }
+
+.detail-purchase-date {
+    font-size: 13px;
+    color: #666;
+    margin-top: 4px;
+}
+
+.detail-subtotal-text {
+    font-size: 14px;
+    font-weight: bold;
+    color: #333;
+    margin-top: 4px;
+}
+
+.detail-price-info {
+    flex: 1;
+    text-align: left;
+}
