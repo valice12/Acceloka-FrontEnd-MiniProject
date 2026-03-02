@@ -1,12 +1,19 @@
 ## BASELINE PROJECT FRONTEND 
+Main Version using Tailwind 
+CSS version using CSS, but on the other branch
 
-FEATURE 
-GET TICKET LIST
-GET BOOKEDTICKET LIST
+## Backend (must pull and build)
+Must use <a href:"https://github.com/valice12/Acceloka-MiniProject.git">Acceloka-MiniProject v2 </a> Backend.
+(New functions for BookedTickets)
 
-GET BOOKEDTICKET (using ID)
 
-DELETE TICKET IN BOOKEDTICKET
-UPDATE TICKET IN BOOKEDTICKET
+## Feature 
+<ul>
+<li>List of All tickets</li>
+<li>List of All BookedTickets</li>
+  
+<li>Delete Tickets in BookedTicket</li>
+<li>Update Tickets Number in BookedTicket</li>
 
-ADDING TICKET (KINDA LIKE PURCASE BUT NOT)
+<li>Add Tickets to Cart and Post</li>
+</ul>
