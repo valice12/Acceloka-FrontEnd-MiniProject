@@ -1,19 +1,14 @@
-## BASELINE PROJECT FRONTEND 
-Main Version using Tailwind 
-CSS version using CSS, but on the other branch
+## Baseline Project Frontend
+* **Main Version:** Uses Tailwind CSS.
+* **Alternative Version:** A vanilla CSS version is available on a separate branch.
 
-## Backend (must pull and build)
-Must use <a href:"https://github.com/valice12/Acceloka-MiniProject.git">Acceloka-MiniProject v2 </a> Backend.
-(New functions for BookedTickets)
+## Backend (Must pull and build)
+This frontend requires the [Acceloka-MiniProject v2](https://github.com/valice12/Acceloka-MiniProject.git) backend. 
+*(Note: This includes new functions for booked tickets).*
 
-
-## Feature 
-<ul>
-<li>List of All tickets</li>
-<li>List of All BookedTickets</li>
-  
-<li>Delete Tickets in BookedTicket</li>
-<li>Update Tickets Number in BookedTicket</li>
-
-<li>Add Tickets to Cart and Post</li>
-</ul>
+## Features
+* List all available tickets
+* List all booked tickets
+* Delete tickets from the booked tickets list
+* Update ticket quantities in the booked tickets list
+* Add tickets to the cart and submit (post)
