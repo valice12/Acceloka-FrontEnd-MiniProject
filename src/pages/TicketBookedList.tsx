@@ -98,8 +98,10 @@ const TicketBookedList: React.FC<TicketBookedListProps> = ({ searchQuery }) => {
     return matchOrderId || matchTicketCode;
   });
 
-  if (loading) return <div className="booked-loading">Loading bookings...</div>;
-
+  if (loading) {
+      return <div className="booked-loading">Loading bookings...</div>;
+  }
+  
   return (
     <div className="booked-container">
       <h1 className="booked-title">Booked Ticket List</h1>

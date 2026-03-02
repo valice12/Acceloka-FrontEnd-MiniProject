@@ -59,8 +59,9 @@ const DetailTicket = () => {
 
     // HANDLER 1: Tambah ke Keranjang
     const handleAddToCart = () => {
-        if (!ticket) return;
-
+        if (!ticket) {
+            return;
+        }
         const isEventStarted = new Date(ticket.eventDateStart) <= new Date();
         if (isEventStarted) {
             alert("Maaf, tiket yang dipesan sudah lewat masa waktu.");
@@ -78,8 +79,9 @@ const DetailTicket = () => {
 
     // HANDLER 2: Pesan Langsung
     const handleBookNow = async () => {
-        if (!ticket) return;
-
+        if (!ticket) {
+            return;
+        }
         const isEventStarted = new Date(ticket.eventDateStart) <= new Date();
         if (isEventStarted) {
             alert("Maaf, tiket yang dipesan sudah lewat masa waktu.");
@@ -116,9 +118,14 @@ const DetailTicket = () => {
         }
     };
     
-    if (isLoading) return <div className="dt-status">Memuat detail tiket...</div>;
-    if (!ticket) return <div className="dt-status">Tiket tidak ditemukan.</div>;
+    if (isLoading) {
+        return <div className="dt-status">Memuat detail tiket...</div>;
+    }
 
+    if (!ticket) {
+        return <div className="dt-status">Tiket tidak ditemukan.</div>;
+    }
+    
     return (
         <div className="dt-container">
             {/* Banner Section */}

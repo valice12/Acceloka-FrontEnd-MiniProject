@@ -29,8 +29,10 @@ const TicketList: React.FC<TicketListProps> = ({ searchQuery }) => {
         // Ganti URL ini dengan endpoint API backend kamu
         const response = await fetch('http://localhost:5287/api/v1/get-available-ticket'); 
         
-        if (!response.ok) throw new Error('Gagal mengambil data tiket');
-        
+        if (!response.ok) {
+            throw new Error('Gagal mengambil data tiket');
+        }   
+
         const data = await response.json();
         setTickets(data);
       } catch (err: any) {
@@ -48,12 +50,13 @@ const TicketList: React.FC<TicketListProps> = ({ searchQuery }) => {
     ticket.ticketName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Loading State
-  if (isLoading) return <div className="state-container">Memuat tiket...</div>;
+  if (isLoading) {
+    return <div className="state-container">Memuat tiket...</div>;
+  }
+  if (error) {
+      return <div className="state-container error-text">Error: {error}</div>;
+  }
   
-  // Error State
-  if (error) return <div className="state-container error-text">Error: {error}</div>;
-
   return (
     <div className="ticket-list-container">
       <h1 className="ticket-list-title">Daftar Tiket Tersedia</h1>

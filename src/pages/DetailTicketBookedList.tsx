@@ -32,8 +32,10 @@ const DetailTicketBookedList = () => {
       setLoading(true);
       const response = await fetch(`http://localhost:5287/api/v1/get-booked-ticket/${id}`);
       
-      if (!response.ok) throw new Error("Gagal mengambil data pesanan.");
-      
+      if (!response.ok) {
+          throw new Error("Gagal mengambil data pesanan.");
+      }      
+
       const data: BookedCategory[] = await response.json();
 
       if (data && data.length > 0) {
@@ -58,10 +60,14 @@ const DetailTicketBookedList = () => {
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
 
-  if (loading && orderCategories.length === 0) return <div className="detail-status">Memuat Detail Pesanan...</div>;
-  if (error || orderCategories.length === 0) return <div className="detail-status detail-error">{error || "Data kosong"}</div>;
+  if (loading && orderCategories.length === 0) {
+      return <div className="detail-status">Memuat Detail Pesanan...</div>;
+    }
 
-  // Kalkulasi total
+  if (error || orderCategories.length === 0) {
+      return <div className="detail-status detail-error">{error || "Data kosong"}</div>;
+  }
+// Kalkulasi total
   const totalBayar = orderCategories.reduce((acc, category) => {
     const price = category.tickets[0]?.price || 0;
     return acc + (price * category.quantityPerCategory);
@@ -85,8 +91,9 @@ const DetailTicketBookedList = () => {
   const handleSaveQuantity = async (ticketCode: string, originalQty: number) => {
     const newQuantity = draftQuantities[ticketCode];
     
-    if (!newQuantity || newQuantity === originalQty) return;
-
+    if (!newQuantity || newQuantity === originalQty) {
+        return;
+    }
     const action = newQuantity > originalQty ? "menambah" : "mengurangi";
     const confirmMsg = `Apakah Anda yakin ingin ${action} jumlah tiket menjadi ${newQuantity}?`;
 
