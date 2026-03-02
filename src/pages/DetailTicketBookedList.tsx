@@ -1,12 +1,12 @@
-import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
-// 1. Definisikan Interface sesuai dengan struktur JSON dari API yang baru
 interface TicketDetail {
   ticketCode: string;
   ticketName: string;
   eventDate: string;
-  price?: number; // Dibuat opsional berjaga-jaga jika API belum/tidak mengirimkan harga
+  purchaseDate?: string; // Menambahkan field purchaseDate
+  price?: number; 
 }
 
 interface BookedCategory {
@@ -15,12 +15,19 @@ interface BookedCategory {
   tickets: TicketDetail[];
 }
 
-const DetailTicketBookedList = () => {
-  const { id } = useParams<{ id: string }>(); 
-  const navigate = useNavigate();
+interface TicketMaster {
+  ticketCode: string;
+  price: number;
+}
 
-  // 2. State disesuaikan untuk menampung array kategori
+const DetailTicketBookedList = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const purchaseDateFromState = location.state?.purchaseDate;
   const [orderCategories, setOrderCategories] = useState<BookedCategory[]>([]);
+  const [ticketMaster, setTicketMaster] = useState<TicketMaster[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -29,17 +36,22 @@ const DetailTicketBookedList = () => {
   const fetchDetailData = useCallback(async () => {
     try {
       setLoading(true);
-      // Menggunakan endpoint API yang baru sesuai ID
-      const response = await fetch(`http://localhost:5287/api/v1/get-booked-ticket/${id}`);
+      const [resDetail, resMaster] = await Promise.all([
+        fetch(`http://localhost:5287/api/v1/get-booked-ticket/${id}`),
+        fetch(`http://localhost:5287/api/v1/get-available-ticket`)
+      ]);
       
-      if (!response.ok) {
-          throw new Error("Gagal mengambil data pesanan.");
+      if (!resDetail.ok || !resMaster.ok) {
+        throw new Error("Gagal mengambil data dari server.");
       }      
 
-      const data: BookedCategory[] = await response.json();
+      const dataDetail: BookedCategory[] = await resDetail.json();
+      const dataMaster: TicketMaster[] = await resMaster.json();
 
-      if (data && data.length > 0) {
-        setOrderCategories(data);
+      setTicketMaster(dataMaster);
+
+      if (dataDetail && dataDetail.length > 0) {
+        setOrderCategories(dataDetail);
         setError(null);
       } else {
         setError("Data pesanan tidak ditemukan.");
@@ -57,233 +69,144 @@ const DetailTicketBookedList = () => {
     }
   }, [fetchDetailData]);
 
-  const formatCurrency = (val: number) => 
-    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
+  const getPriceByCode = (code: string): number => {
+    const found = ticketMaster.find((item) => {
+      return item.ticketCode === code;
+    });
+    return found ? found.price : 0;
+  };
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('id-ID', { 
+      style: 'currency', 
+      currency: 'IDR', 
+      minimumFractionDigits: 0 
+    }).format(val);
+  };
+
+  // Helper untuk format tanggal & waktu
+  const formatDateTime = (dateString?: string) => {
+    if (!dateString) {
+      return "-";
+    }
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  };
+
+  const totalBayar = useMemo(() => {
+    return orderCategories.reduce((acc, category) => {
+      const price = getPriceByCode(category.tickets[0]?.ticketCode);
+      return acc + (price * category.quantityPerCategory);
+    }, 0);
+  }, [orderCategories, ticketMaster]);
 
   if (loading && orderCategories.length === 0) {
-      return <div className="detail-status">Memuat Detail Pesanan...</div>;
+    return <div className="p-10 text-center font-medium">Memuat Detail Pesanan...</div>;
   }
+  
   if (error || orderCategories.length === 0) {
-      return <div className="detail-status detail-error">{error || "Data kosong"}</div>;
+    return <div className="p-10 text-center text-red-500 font-bold">{error || "Data tidak ditemukan"}</div>;
   }
-  // Kalkulasi total bayar berdasarkan quantity kategori * harga tiket (jika ada)
-  const totalBayar = orderCategories.reduce((acc, category) => {
-    const price = category.tickets[0]?.price || 0;
-    return acc + (price * category.quantityPerCategory);
-  }, 0);
-
-  const handleLocalQuantityChange = (ticketCode: string, originalQty: number, delta: number) => {
-    const currentQty = draftQuantities[ticketCode] !== undefined ? draftQuantities[ticketCode] : originalQty;
-    const newQuantity = currentQty + delta;
-
-    if (newQuantity < 1) {
-      alert("Jumlah tiket minimal adalah 1. Gunakan tombol hapus jika ingin membatalkan tiket.");
-      return;
-    }
-
-    setDraftQuantities(prev => ({
-      ...prev,
-      [ticketCode]: newQuantity
-    }));
-  };
-
-  const handleSaveQuantity = async (ticketCode: string, originalQty: number) => {
-    const newQuantity = draftQuantities[ticketCode];
-    
-  if (!newQuantity || newQuantity === originalQty) {
-      return;
-  }
-    const action = newQuantity > originalQty ? "menambah" : "mengurangi";
-    const confirmMsg = `Apakah Anda yakin ingin ${action} jumlah tiket menjadi ${newQuantity}?`;
-
-    if (window.confirm(confirmMsg)) {
-      try {
-        setLoading(true);
-        const response = await fetch(`http://localhost:5287/api/v1/edit-booked-ticket/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tickets: [{ ticketCode, quantity: newQuantity }]
-          })
-        });
-
-        if (response.ok) {
-          alert("Berhasil memperbarui jumlah tiket.");
-          
-          setDraftQuantities(prev => {
-            const newState = { ...prev };
-            delete newState[ticketCode];
-            return newState;
-          });
-
-          await fetchDetailData(); 
-        } else {
-          alert("Gagal memperbarui tiket. Silakan cek koneksi atau ketersediaan tiket.");
-        }
-      } catch (err) {
-        console.error(err);
-        alert("Terjadi kesalahan sistem.");
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
-  const handleCancelDraft = (ticketCode: string) => {
-    setDraftQuantities(prev => {
-      const newState = { ...prev };
-      delete newState[ticketCode];
-      return newState;
-    });
-  };
-
-  const handleDeleteTicket = async (ticketCode: string, currentQuantity: number) => {
-    if (window.confirm("PERINGATAN: Tiket yang sudah dihapus tidak dapat dikembalikan. Lanjutkan hapus tiket?")) {
-      try {
-        setLoading(true);
-        const response = await fetch(`http://localhost:5287/api/v1/revoke-ticket/${id}/${ticketCode}/${currentQuantity}`, {
-          method: 'DELETE'
-        });
-
-        if (response.ok) {
-          alert("Tiket berhasil dihapus.");
-          await fetchDetailData(); 
-        } else {
-          alert("Gagal menghapus tiket.");
-        }
-      } catch (err) {
-        alert("Terjadi kesalahan saat menghapus.");
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <button onClick={() => navigate(-1)} className="mb-4 text-blue-600 font-medium flex items-center hover:underline">
-        ← Kembali ke Daftar Pesanan
+    <div className="min-h-screen bg-gray-50 p-6">
+      <button onClick={() => { navigate(-1); }} className="mb-6 text-blue-600 font-bold flex items-center hover:text-blue-800 transition">
+        <span className="mr-2">←</span> Kembali ke Daftar
       </button>
 
       <div className="max-w-3xl mx-auto">
-        <div className="bg-white p-6 rounded-t-2xl border-b border-gray-100 flex justify-between items-center">
+        <div className="bg-white p-6 rounded-t-2xl border-b border-gray-100 flex justify-between items-start text-left shadow-sm">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">Detail Pesanan</h1>
-            <p className="text-[10px] font-mono text-gray-400 mt-1 uppercase">ID: {id}</p>
+            <h1 className="text-2xl font-extrabold text-gray-800">Ringkasan Pesanan</h1>
+            <p className="text-xs font-mono text-gray-400 mt-1">ORDER ID: {id}</p>
+            
+            {/* Tampilkan purchaseDate yang di-parse dari halaman sebelumnya */}
+            <p className="text-sm text-gray-600 mt-2 font-medium">
+              Tanggal Transaksi: <span className="text-gray-800">
+                {purchaseDateFromState ? formatDateTime(purchaseDateFromState) : "Memuat tanggal..."}
+              </span>
+            </p>
           </div>
-          <span className="bg-green-100 text-green-700 px-4 py-1 rounded-full text-sm font-bold">Status Pembayaran</span>
+          <div className="flex flex-col items-end">
+             <span className="bg-green-500 text-white px-4 py-1 rounded-full text-xs font-bold shadow-sm">PAID / LUNAS</span>
+          </div>
         </div>
 
-       <div className="space-y-4 mt-4">
-          {/* Mapping kategori, kemudian mapping tiket di dalamnya */}
-          {orderCategories.map((category, catIndex) => (
-            category.tickets.map((ticket, tIndex) => {
-              // Gunakan quantityPerCategory sebagai original quantity
-              const originalQty = category.quantityPerCategory;
-              
-              const currentDisplayQty = draftQuantities[ticket.ticketCode] !== undefined 
-                ? draftQuantities[ticket.ticketCode] 
-                : originalQty;
-              
-              const isChanged = currentDisplayQty !== originalQty;
+        <div className="space-y-5 mt-5">
+          {orderCategories.map((category) => {
+            return category.tickets.map((ticket) => {
+              const currentQty = draftQuantities[ticket.ticketCode] || category.quantityPerCategory;
+              const unitPrice = getPriceByCode(ticket.ticketCode);
 
               return (
-                <div key={ticket.ticketCode} className="bg-white rounded-xl shadow-md overflow-hidden border-l-8 border-blue-500 text-left p-6">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h2 className="text-lg font-bold text-blue-600">
-                        Tiket #{catIndex + 1}.{tIndex + 1} - <span className="text-gray-500 text-sm font-normal">{category.categoryName}</span>
-                      </h2>
-                      
-                      <h3 className="text-base font-semibold text-gray-800 mt-1">
-                        {ticket.ticketName}
-                      </h3>
-                      
-                      {/* Kontrol Jumlah Tiket */}
-                      <div className="flex items-center gap-3 mt-3">
-                        <button 
-                          onClick={() => handleLocalQuantityChange(ticket.ticketCode, originalQty, -1)}
-                          disabled={loading}
-                          className={`w-8 h-8 flex items-center justify-center rounded-full font-bold transition ${
-                            loading ? "bg-gray-100 text-gray-300" : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-                          }`}
-                        >
-                          -
-                        </button>
-                        
-                        <span className={`text-sm font-bold w-12 text-center ${isChanged ? 'text-orange-500' : 'text-gray-800'}`}>
-                          {currentDisplayQty} Pax
+                <div key={ticket.ticketCode} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden text-left transition hover:shadow-md">
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded">
+                          {category.categoryName}
                         </span>
-                        
-                        <button 
-                          onClick={() => handleLocalQuantityChange(ticket.ticketCode, originalQty, 1)}
-                          disabled={loading}
-                          className={`w-8 h-8 flex items-center justify-center rounded-full font-bold transition ${
-                            loading ? "bg-gray-100 text-gray-300" : "bg-blue-100 hover:bg-blue-200 text-blue-600"
-                          }`}
-                        >
-                          +
-                        </button>
-
-                        {isChanged && (
-                          <div className="flex items-center gap-2 ml-2">
-                            <button 
-                              onClick={() => handleSaveQuantity(ticket.ticketCode, originalQty)}
-                              className="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm transition"
-                            >
-                              Simpan
-                            </button>
-                            <button 
-                              onClick={() => handleCancelDraft(ticket.ticketCode)}
-                              className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs px-3 py-1.5 rounded font-bold shadow-sm transition"
-                            >
-                              Batal
-                            </button>
-                          </div>
-                        )}
+                        <h2 className="text-lg font-bold text-gray-800 mt-2">{ticket.ticketName}</h2>
+                      </div>
+                      <div className="text-right">
+                         <p className="text-[10px] text-gray-400 uppercase font-mono">Ticket Code</p>
+                         <p className="text-sm font-bold text-gray-700">{ticket.ticketCode.substring(0, 8)}...</p>
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-end">
-                      <p className="text-gray-400 uppercase text-[10px] tracking-widest">Kode Tiket</p>
-                      <p className="font-mono font-bold text-gray-800 bg-gray-100 px-2 py-1 rounded mb-2">
-                        {ticket.ticketCode.split('-')[0]}...
-                      </p>
-                      
-                      <button 
-                        onClick={() => handleDeleteTicket(ticket.ticketCode, originalQty)}
-                        className="text-[10px] text-red-500 hover:text-red-700 font-bold flex items-center gap-1 border border-red-200 px-2 py-1 rounded bg-red-50"
-                      >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        HAPUS TIKET
-                      </button>
+                    <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase font-bold">Waktu Event</p>
+                        <p className="text-sm font-semibold text-gray-700">{ticket.eventDate}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase font-bold">Jumlah Tiket</p>
+                        <p className="text-sm font-semibold text-gray-700">{currentQty} Tiket</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase font-bold">Harga Satuan</p>
+                        <p className="text-sm font-semibold text-blue-600">{formatCurrency(unitPrice)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase font-bold">Subtotal</p>
+                        <p className="text-sm font-bold text-gray-800">{formatCurrency(unitPrice * currentQty)}</p>
+                      </div>
                     </div>
                   </div>
                   
-                  <div className="mt-4 pt-4 border-t border-dashed border-gray-200 flex items-center gap-4">
-                    <div className="w-16 h-16 bg-gray-200 flex items-center justify-center text-[10px] text-gray-500 font-bold border-2 border-gray-300">QR</div>
-                    <div>
-                      <p className="text-sm font-bold text-gray-700">
-                        {/* Langsung render eventDate dari API */}
-                        Jadwal: {ticket.eventDate}
-                      </p>
-                      <p className="text-[11px] text-gray-400">Harga Satuan: {ticket.price ? formatCurrency(ticket.price) : 'Gratis / TBD'}</p>
-                    </div>
+                  {/* Info tambahan di footer card */}
+                  <div className="bg-gray-50/50 px-6 py-3 border-t border-gray-100 flex justify-between items-center">
+                    <p className="text-[10px] text-gray-500 italic">
+                      Data pembelian diverifikasi pada: {formatDateTime(ticket.purchaseDate)}
+                    </p>
+                    <button className="text-[10px] font-bold text-blue-600 hover:underline uppercase">Lihat E-Ticket</button>
                   </div>
                 </div>
               );
-            })
-          ))}
+            });
+          })}
         </div>
 
-        <div className="mt-6 bg-gray-800 p-6 rounded-xl flex justify-between items-center text-white shadow-lg">
-          <div>
-            <p className="text-xs text-gray-400 uppercase">Total Pembayaran</p>
-            <p className="text-xl font-bold">{formatCurrency(totalBayar)}</p>
+        {/* Total Sticky Section */}
+        <div className="mt-8 bg-gray-900 text-white p-6 rounded-3xl shadow-2xl flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="text-center md:text-left">
+            <p className="text-xs text-gray-400 uppercase tracking-widest">Total Bayar Keseluruhan</p>
+            <p className="text-3xl font-black text-blue-400">{formatCurrency(totalBayar)}</p>
           </div>
-          <button className="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded-lg font-bold">Download PDF</button>
+          <div className="flex gap-3">
+            <button className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-2xl font-bold transition">
+              Share
+            </button>
+            <button className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-blue-500/30 transition active:scale-95">
+              Download Invoice
+            </button>
+          </div>
         </div>
       </div>
     </div>
